@@ -4,78 +4,11 @@ const VIVACrowdsale = artifacts.require('./VIVACrowdsale.sol');
 const VIVACrowdsaleData = artifacts.require('./VIVACrowdsaleData.sol');
 const VIVACrowdsaleRound = artifacts.require('./VIVACrowdsaleRound.sol');
 
+const rounds = require('../rounds');
+
 const DAY = 1000 * 60 * 60 * 24;
 
 module.exports = function(deployer, network, accounts) {
-
-  const rounds = [{
-      refundable: false,
-      capAtWei: '500000000000000000000',
-      capAtDuration: 10 * DAY,
-      bonuses: [{
-        tier: '0',
-        rate: '20000160000000'
-      }]
-    },
-    {
-      refundable: false,
-      capAtWei: '2570000000000000000000',
-      capAtDuration: 10 * DAY,
-      bonuses: [{
-        tier: '0',
-        rate: '20740900000000'
-      }]
-    },
-    {
-      refundable: false,
-      capAtWei: '6870000000000000000000',
-      capAtDuration: 10 * DAY,
-      bonuses: [{
-        tier: '0',
-        rate: '21538630000000'
-      }]
-    },
-    {
-      refundable: true,
-      capAtWei: '11200000000000000000000',
-      capAtDuration: 20 * DAY,
-      bonuses: [{
-        tier: '0',
-        rate: '22400170000000'
-      }]
-    },
-    {
-      refundable: true,
-      capAtWei: '33070000000000000000000',
-      capAtDuration: 20 * DAY,
-      bonuses: [{
-        tier: '0',
-        rate: '24348020000000'
-      }]
-    },
-    {
-      refundable: true,
-      capAtWei: '68770000000000000000000',
-      capAtDuration: 20 * DAY,
-      bonuses: [{
-          tier: '0',
-          rate: '28000220000000'
-        },
-        {
-          tier: '1000000000000000000',
-          rate: '26666880000000'
-        },
-        {
-          tier: '1900000000000000000',
-          rate: '25454740000000'
-        },
-        {
-          tier: '2900000000000000000',
-          rate: '24348020000000'
-        }
-      ]
-    }
-  ];
 
   function createRound(round) {
     return (createRoundCallback) => {

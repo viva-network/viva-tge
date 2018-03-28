@@ -8,7 +8,7 @@ import './VIVACrowdsaleData.sol';
 import './VIVAVault.sol';
 import './Testable.sol';
 
-contract VIVACrowdsale is Testable {
+contract VIVACrowdsale is Administrated, Testable {
 
   using SafeMath for uint256;
 
@@ -25,6 +25,8 @@ contract VIVACrowdsale is Testable {
   // ===== Main TGE Parameters (Constant) =================================================
   uint256 public constant baseRate                 = 28000220000000;
   uint256 public constant minContributionWeiAmount = 1000000000000000;
+  uint256 public constant tokensPrivateInvesting   = 50000000;
+  uint256 public constant tokensMarketing          = 500000000;
   uint256 public constant tokensTeam               = 300000000;
   uint256 public constant tokensAdvisor            = 150000000;
   uint256 public constant tokensBounty             = 50000000;
@@ -40,61 +42,17 @@ contract VIVACrowdsale is Testable {
       data = _data;
   }
 
-  function privateInvestment(address beneficiary, uint256 tokens) public onlyOwner {
-    // Marketing, private investment, etc.
-    // This is of course subject to the predetermined token supply cap, so investors
-    // are assured no flooding possible.
-    // TODO 100 mil cap
-    require(!data.isFinalized());
+  function privateContribution(address beneficiary, uint256 tokens) public onlyAdmin {
+    require(beneficiary != address(0));
     require(tokens > 0);
+    require(!data.isFinalized());
+    require(tokens.add(data.privateContributionTokens()) <= tokensPrivateInvesting.add(tokensMarketing));
+    assert(data.registerPrivateContribution(beneficiary, tokens));
     assert(data.mintTokens(beneficiary, tokens));
   }
 
   function () external payable {
     buyTokens();
-  }
-
-  function buyTokens() public payable {
-    require(!data.isFinalized());
-    VIVACrowdsaleRound round = getCurrentRound(getNow());
-    require(round.initialized());
-    uint256 tokens = getTokenAmount(round, baseRate, msg.value);
-    require(validPurchase(round, msg.sender, msg.value, tokens));
-    assert(data.purchased.value(msg.value)(round, msg.sender, msg.value, tokens));
-    assert(data.mintTokens(msg.sender, tokens));
-  }
-
-  function validPurchase(VIVACrowdsaleRound round, address beneficiary, uint256 weiAmount, uint256 tokens) internal view returns (bool) {
-    // Ensure exceeds min contribution size
-    if(weiAmount < minContributionWeiAmount) {
-      return false;
-    }
-    if(tokens <= 0) {
-      return false;
-    }
-
-    // Ensure we have enough tokens left for sale
-    if(tokens.add(data.mintedForSaleTokens()) > tokensForSale) {
-      return false;
-    }
-
-    // TODO how will next round roll over before duration if hardcap cannot be excceded?
-
-    // Ensure cap not exceeded
-    if(weiAmount.add(data.weiRaisedForSale()) > round.capAtWei()) {
-      return false;
-    }
-
-    uint256 contributed = weiAmount.add(data.getWeiContributed(beneficiary));
-    // Ensure large investors are approved
-    if(contributed > data.largeInvestorWei()) {
-      if(data.getLargeInvestorApproval(beneficiary) < contributed) {
-        return false;
-      }
-    }
-
-    // It's valid!
-    return true;
   }
 
   function getCurrentRound(uint256 valuationDate) public view returns (VIVACrowdsaleRound) {
@@ -118,17 +76,63 @@ contract VIVACrowdsale is Testable {
     }
   }
 
-  function getTokenAmount(VIVACrowdsaleRound round, uint256 _baseRate, uint256 weiAmount) internal view returns(uint256) {
-    return weiAmount.div(round.getBonusRate(_baseRate, weiAmount));
+  function getTokenAmount(VIVACrowdsaleRound round, uint256 weiAmount) public view returns(uint256) {
+    require(address(round) != address(0));
+    if(weiAmount == 0) return 0;
+    return weiAmount.div(round.getBonusRate(baseRate, weiAmount));
   }
 
-  function cancel() onlyOwner public {
+  function buyTokens() public payable {
+    require(!data.isFinalized());
+    VIVACrowdsaleRound round = getCurrentRound(getNow());
+    require(address(round) != address(0));
+    uint256 tokens = getTokenAmount(round, msg.value);
+    require(validPurchase(round, msg.sender, msg.value, tokens));
+    assert(data.registerPurchase.value(msg.value)(round, msg.sender, tokens));
+    assert(data.mintTokens(msg.sender, tokens));
+  }
+
+  function validPurchase(VIVACrowdsaleRound round, address beneficiary, uint256 weiAmount, uint256 tokens) internal view returns (bool) {
+    // Ensure exceeds min contribution size
+    if(weiAmount < minContributionWeiAmount) {
+      return false;
+    }
+    if(tokens <= 0) {
+      return false;
+    }
+
+    // Ensure we have enough tokens left for sale
+    if(tokens.add(data.mintedForSaleTokens()) > tokensForSale) {
+      return false;
+    }
+
+    // Ensure cap not exceeded
+    if(weiAmount.add(data.weiRaisedForSale()) > round.capAtWei()) {
+      return false;
+    }
+
+    uint256 contributed = weiAmount.add(data.getWeiContributed(beneficiary));
+    // Ensure large investors are approved
+    if(contributed > data.largeInvestorWei()) {
+      if(data.getLargeInvestorApproval(beneficiary) < contributed) {
+        return false;
+      }
+    }
+
+    if(data.isBlacklisted(beneficiary)) {
+      return false;
+    }
+
+    // It's valid!
+    return true;
+  }
+
+  function cancel() onlyAdmin public {
     require(!data.isFinalized());
     data.finalize(msg.sender, true);
   }
 
-  function finalize() onlyOwner public {
-    // TODO Time / hardcap
+  function finalize() onlyAdmin public {
     require(!data.isFinalized());
     data.setBountyVault(createVault(msg.sender, tokensBounty));
     data.setReserveVault(createVault(msg.sender, tokensReserved));

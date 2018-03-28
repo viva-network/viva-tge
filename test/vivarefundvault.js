@@ -1,6 +1,6 @@
 require('chai')
- .use(require('chai-as-promised'))
- .should();
+  .use(require('chai-as-promised'))
+  .should();
 
 const VIVARefundVault = artifacts.require('VIVARefundVault');
 
@@ -23,7 +23,9 @@ contract('VIVARefundVault', async (accounts) => {
     let instance = await VIVARefundVault.new(accounts[0]);
     let wallet = await instance.getWallet();
     expect(wallet).to.equal(accounts[0]);
-    await instance.setWallet(accounts[1], { from: accounts[2] }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+    await instance.setWallet(accounts[1], {
+      from: accounts[2]
+    }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     wallet = await instance.getWallet();
     expect(wallet).to.equal(accounts[0]);
   });

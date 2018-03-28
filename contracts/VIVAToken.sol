@@ -13,6 +13,8 @@ contract VIVAToken is CappedToken, FrozenUntil {
   string public symbol = "VIVA";
   uint8 public decimals = 18;
 
+  event RevokedMint(address indexed from, uint256 amount);
+
   function VIVAToken(uint256 _cap, uint256 _frozenUntil) public
     CappedToken(_cap)
     FrozenUntil(_frozenUntil) { }
@@ -29,12 +31,24 @@ contract VIVAToken is CappedToken, FrozenUntil {
     return super.approve(_spender, _value);
   }
 
-  function increaseApproval(address _spender, uint _addedValue) public whenNotFrozen returns (bool success) {
+  function increaseApproval(address _spender, uint256 _addedValue) public whenNotFrozen returns (bool success) {
     return super.increaseApproval(_spender, _addedValue);
   }
 
-  function decreaseApproval(address _spender, uint _subtractedValue) public whenNotFrozen returns (bool success) {
+  function decreaseApproval(address _spender, uint256 _subtractedValue) public whenNotFrozen returns (bool success) {
     return super.decreaseApproval(_spender, _subtractedValue);
+  }
+
+  function revokeMint(address _from, uint256 _amount) public onlyOwner canMint returns (bool) {
+    // This will allow 'undoing' of token minting (for legal situations)
+    // Once token mint is finalized, this will never be possible
+    require(_from != address(0));
+    require(_amount > 0);
+    require(_amount <= balanceOf(_from));
+    totalSupply_ = totalSupply_.sub(_amount);
+    balances[_from] = balances[_from].sub(_amount);
+    RevokedMint(_from, _amount);
+    return true;
   }
 
 }

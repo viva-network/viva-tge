@@ -35,6 +35,7 @@ contract VIVACrowdsaleData is Administrated, Testable {
   bool public refundVaultClosed = false;
 
   // Track general sale progress
+  uint256 public privateContributionTokens;
   mapping(address => uint256) internal weiContributed;
   uint256 public mintedForSaleTokens; // Total general sale tokens minted
   uint256 public weiRaisedForSale;
@@ -42,6 +43,8 @@ contract VIVACrowdsaleData is Administrated, Testable {
   // Verified investors only for > 7ETH (must be pre-approved)
   uint256 public largeInvestorWei = 7000000000000000000; // 7 ETH
   mapping(address => uint256) internal approvedLargeInvestors; // And their authorized limits
+  // Unauthorized purchasers (if KYC not completed, tokens will be revoked and ETH returned)
+  mapping(address => bool) internal blacklisted;
 
   function VIVACrowdsaleData(
     address _wallet,
@@ -68,18 +71,22 @@ contract VIVACrowdsaleData is Administrated, Testable {
     startTime = _startTime;
   }
 
-  function getWeiContributed(address from) public view returns (uint256) { return weiContributed[from];  }
-
   function mintTokens(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
     require(beneficiary != address(0));
     require(tokens > 0);
     return token.mint(beneficiary, tokens);
   }
 
-  function purchased(VIVACrowdsaleRound round, address beneficiary, uint256 weiAmount, uint256 tokens) public payable onlyAdmin returns (bool) {
-    require(round.initialized());
+  function registerPrivateContribution(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
     require(beneficiary != address(0));
-    require(weiAmount >= 0);
+    require(tokens > 0);
+    privateContributionTokens = privateContributionTokens.add(tokens);
+    return true;
+  }
+
+  function registerPurchase(VIVACrowdsaleRound round, address beneficiary, uint256 tokens) public payable onlyAdmin returns (bool) {
+    require(address(round) != address(0));
+    require(beneficiary != address(0));
     require(tokens >= 0);
     require(msg.value >= 0);
     if(round.refundable()) {
@@ -87,11 +94,13 @@ contract VIVACrowdsaleData is Administrated, Testable {
     } else {
       wallet.transfer(msg.value);
     }
-    weiContributed[beneficiary] = weiAmount.add(weiContributed[beneficiary]);
-    weiRaisedForSale = weiRaisedForSale.add(weiAmount);
+    weiContributed[beneficiary] = msg.value.add(weiContributed[beneficiary]);
+    weiRaisedForSale = weiRaisedForSale.add(msg.value);
     mintedForSaleTokens = mintedForSaleTokens.add(tokens);
     return true;
   }
+
+  function getWeiContributed(address from) public view returns (uint256) { return weiContributed[from];  }
 
   function closeRefundVault(bool refund) public onlyAdmin {
     require(!refundVaultClosed);
@@ -137,6 +146,18 @@ contract VIVACrowdsaleData is Administrated, Testable {
     require(!isFinalized);
     require(weiLimit >= largeInvestorWei);
     approvedLargeInvestors[beneficiary] = weiLimit;
+  }
+
+  function isBlacklisted(address beneficiary) public view returns (bool) {
+    require(beneficiary != address(0));
+    return blacklisted[beneficiary];
+  }
+
+  function blacklist(address beneficiary, bool _blacklist) public onlyAdmin {
+    require(beneficiary != address(0));
+    require(!isFinalized); // Cannot revoke tokens after finalization (ownership is transferred and mint finished)
+    blacklisted[beneficiary] = _blacklist;
+    assert(token.revokeMint(beneficiary, token.balanceOf(beneficiary)));
   }
 
   function setBountyVault(VIVAVault vault) public onlyAdmin         { bountyVault = vault;  }

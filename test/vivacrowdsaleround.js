@@ -1,6 +1,6 @@
 require('chai')
- .use(require('chai-as-promised'))
- .should();
+  .use(require('chai-as-promised'))
+  .should();
 
 const testUtils = require('./test-utils');
 
@@ -26,22 +26,27 @@ contract('VIVACrowdsaleRound', async (accounts) => {
     let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
     let _capAtDuration = await instance.capAtDuration();
     assert(_capAtDuration.toNumber() == capAtDuration);
-    await instance.setCapAtDuration(capAtDuration*2);
+    await instance.setCapAtDuration(capAtDuration * 2);
     _capAtDuration = await instance.capAtDuration();
-    assert(_capAtDuration.toNumber() == capAtDuration*2);
+    assert(_capAtDuration.toNumber() == capAtDuration * 2);
   });
 
   it('should not set capAtDuration if not owner', async () => {
     let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
     let _capAtDuration = await instance.capAtDuration();
     assert(_capAtDuration.toNumber() == capAtDuration);
-    await instance.setCapAtDuration(capAtDuration*2, { from: accounts[1] }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+    await instance.setCapAtDuration(capAtDuration * 2, {
+      from: accounts[1]
+    }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     _capAtDuration = await instance.capAtDuration();
     assert(_capAtDuration.toNumber() == capAtDuration);
   });
 
   const baseRate = 10000;
-  const bonusNoTier = { tier: 0, rate: 50000 };
+  const bonusNoTier = {
+    tier: 0,
+    rate: 50000
+  };
 
   it('should return no bonus', async () => {
     let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
@@ -58,11 +63,19 @@ contract('VIVACrowdsaleRound', async (accounts) => {
 
   it('should not add bonus if not owner', async () => {
     let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
-    await instance.addBonus(bonusNoTier.tier, bonusNoTier.rate, { from: accounts[1] }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+    await instance.addBonus(bonusNoTier.tier, bonusNoTier.rate, {
+      from: accounts[1]
+    }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
   });
 
-  const bonusTier1 = { tier: web3.toWei(1, "ether"), rate: 50000 };
-  const bonusTier2 = { tier: web3.toWei(2, "ether"), rate: 60000 };
+  const bonusTier1 = {
+    tier: web3.toWei(1, "ether"),
+    rate: 50000
+  };
+  const bonusTier2 = {
+    tier: web3.toWei(2, "ether"),
+    rate: 60000
+  };
 
   it('should calculate tiered bonus', async () => {
     let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);

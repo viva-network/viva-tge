@@ -12,7 +12,6 @@ contract VIVACrowdsaleRound is Ownable {
     uint256 rate;
   }
 
-  bool public initialized;
   bool public refundable;
   uint256 public capAtWei;
   uint256 public capAtDuration;
@@ -27,7 +26,6 @@ contract VIVACrowdsaleRound is Ownable {
     refundable = _refundable;
     capAtWei = _capAtWei;
     capAtDuration = _capAtDuration;
-    initialized = true;
   }
 
   function addBonus(uint256 tier, uint256 rate) public onlyOwner {

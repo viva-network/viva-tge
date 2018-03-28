@@ -18,16 +18,20 @@ module.exports = function(deployer, network, accounts) {
     startTime,
     testing
   ).then(() => {
-    // TODO Cleaner chain but...
+    // TODO Cleaner chain but... YOLO
     return deployer.deploy(VIVACrowdsale, VIVACrowdsaleData.address, testing).then(() => {
-      return VIVACrowdsaleData.deployed().then((instance) => {
-        return instance.setAdmin(VIVACrowdsaleData.address, true, {
+      return VIVACrowdsaleData.deployed().then((data) => {
+        return data.setAdmin(VIVACrowdsaleData.address, true, {
           from: accounts[0]
         }).then(() => {
-          return instance.setAdmin(accounts[0], true, {
+          return data.setAdmin(accounts[0], true, {
             from: accounts[0]
           }).then(() => {
-
+            return VIVACrowdsale.deployed().then((crowdsale) => {
+              return crowdsale.setAdmin(accounts[0], true, {
+                from: accounts[0]
+              });
+            });
           });
         });
       });

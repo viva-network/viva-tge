@@ -4,10 +4,10 @@ import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 
 contract FrozenUntil is Ownable {
 
-  uint256 public until;
+  uint256 public frozenUntil;
 
-  function FrozenUntil(uint256 _until) public {
-    until = _until;
+  function FrozenUntil(uint256 _frozenUntil) public {
+    frozenUntil = _frozenUntil;
   }
 
   modifier whenNotFrozen() {
@@ -15,18 +15,20 @@ contract FrozenUntil is Ownable {
     _;
   }
 
+  modifier whenFrozen() {
+    require(isFrozen(now));
+    _;
+  }
+
   function isFrozen(uint256 at) public view returns (bool) {
-    return at < until;
+    return at < frozenUntil;
   }
 
-  function freezeUntil(uint256 _until) onlyOwner public {
-    until = _until;
+  function freezeUntil(uint256 _frozenUntil) onlyOwner public {
+    frozenUntil = _frozenUntil;
   }
 
-  function getFrozenUntil() public view returns (uint256) {
-    return until;
-  }
-
-  function test() public view whenNotFrozen {}
+  function testNotFrozen() public view whenNotFrozen {}
+  function testFrozen() public view whenFrozen {}
 
 }
