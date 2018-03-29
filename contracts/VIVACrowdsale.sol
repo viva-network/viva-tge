@@ -55,12 +55,12 @@ contract VIVACrowdsale is Administrated, Testable {
     buyTokens();
   }
 
-  function getCurrentRound(uint256 valuationDate) public view returns (VIVACrowdsaleRound) {
+  function getCurrentRound(uint256 valuationDate, uint256 weiRaisedForSale) public view returns (VIVACrowdsaleRound) {
     uint256 time = data.startTime();
     bool hadTimeRange = false;
     for(uint i = 0; i < data.getNumRounds(); i++) {
       bool inTimeRange = valuationDate >= time && valuationDate < time.add(data.rounds(i).capAtDuration());
-      bool inCapRange = data.weiRaisedForSale() < data.rounds(i).capAtWei();
+      bool inCapRange = weiRaisedForSale < data.rounds(i).capAtWei();
       if(inTimeRange) {
         if(inCapRange) {
           return data.rounds(i);
@@ -73,6 +73,7 @@ contract VIVACrowdsale is Administrated, Testable {
           }
         }
       }
+      time = time.add(data.rounds(i).capAtDuration());
     }
   }
 
@@ -84,7 +85,7 @@ contract VIVACrowdsale is Administrated, Testable {
 
   function buyTokens() public payable {
     require(!data.isFinalized());
-    VIVACrowdsaleRound round = getCurrentRound(getNow());
+    VIVACrowdsaleRound round = getCurrentRound(getNow(), data.weiRaisedForSale());
     require(address(round) != address(0));
     uint256 tokens = getTokenAmount(round, msg.value);
     require(validPurchase(round, msg.sender, msg.value, tokens));
@@ -93,6 +94,14 @@ contract VIVACrowdsale is Administrated, Testable {
   }
 
   function validPurchase(VIVACrowdsaleRound round, address beneficiary, uint256 weiAmount, uint256 tokens) internal view returns (bool) {
+    // Crowdsale must be active
+    if(address(round) == address(0)) {
+      return false;
+    }
+    if(data.isFinalized()) {
+      return false;
+    }
+
     // Ensure exceeds min contribution size
     if(weiAmount < minContributionWeiAmount) {
       return false;
@@ -158,6 +167,17 @@ contract VIVACrowdsale is Administrated, Testable {
     assert(address(vault) != address(0));
     vault.setAdmin(admin, true);
     assert(data.mintTokens(address(vault), tokens));
+  }
+
+  function blacklist(address beneficiary) public onlyAdmin {
+    require(beneficiary != address(0));
+    require(!data.isFinalized());
+    uint256 tokensOwned = data.token().balanceOf(beneficiary);
+    if(tokensOwned > 0) {
+      // Assumes these tokens were issued in the general sale (not private investment or otherwise)
+      assert(data.revokeMint(beneficiary, tokensOwned));
+    }
+    assert(data.unregisterPurchase(beneficiary, tokensOwned, data.getWeiContributed(beneficiary)));
   }
 
 }

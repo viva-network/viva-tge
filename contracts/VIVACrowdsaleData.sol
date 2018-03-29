@@ -77,6 +77,12 @@ contract VIVACrowdsaleData is Administrated, Testable {
     return token.mint(beneficiary, tokens);
   }
 
+  function revokeMint(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
+    require(beneficiary != address(0));
+    require(tokens > 0);
+    return token.revokeMint(beneficiary, tokens);
+  }
+
   function registerPrivateContribution(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
     require(beneficiary != address(0));
     require(tokens > 0);
@@ -155,13 +161,22 @@ contract VIVACrowdsaleData is Administrated, Testable {
 
   function blacklist(address beneficiary, bool _blacklist) public onlyAdmin {
     require(beneficiary != address(0));
-    require(!isFinalized); // Cannot revoke tokens after finalization (ownership is transferred and mint finished)
     blacklisted[beneficiary] = _blacklist;
-    assert(token.revokeMint(beneficiary, token.balanceOf(beneficiary)));
+  }
+
+  function unregisterPurchase(address beneficiary, uint256 tokens, uint256 weiAmount) public onlyAdmin returns (bool) {
+    require(beneficiary != address(0));
+    require(tokens >= 0);
+    require(tokens <= token.balanceOf(beneficiary));
+    require(weiAmount <= weiContributed[beneficiary]);
+    mintedForSaleTokens = mintedForSaleTokens.sub(tokens);
+    weiRaisedForSale = weiRaisedForSale.sub(weiAmount);
+    weiContributed[beneficiary] = weiContributed[beneficiary].sub(weiAmount);
   }
 
   function setBountyVault(VIVAVault vault) public onlyAdmin         { bountyVault = vault;  }
   function setReserveVault(VIVAVault vault) public onlyAdmin        { reserveVault = vault; }
   function setTeamVault(VIVAVestingVault vault) public onlyAdmin    { teamVault = vault;    }
   function setAdvisorVault(VIVAVestingVault vault) public onlyAdmin { advisorVault = vault; }
+
 }

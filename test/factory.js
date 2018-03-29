@@ -8,7 +8,7 @@ async function crowdsaleInstance(data, admins, testing) {
   const instance = await VIVACrowdsale.new(data.address, testing);
   await data.setAdmin(instance.address, true);
   for (const admin of admins) {
-    await data.setAdmin(admin, true);
+    await instance.setAdmin(admin, true);
   }
   return instance;
 }

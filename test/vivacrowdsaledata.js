@@ -2,7 +2,6 @@ require('chai')
   .use(require('chai-as-promised'))
   .should();
 
-
 const BigNumber = require('bignumber.js');
 
 const testUtils = require('./test-utils');
@@ -18,10 +17,12 @@ contract('VIVACrowdsaleData', async (accounts) => {
 
   const GAS_PRICE = new BigNumber(100000000000);
   const OWNER = accounts[0];
-  const FUND_WALLET = accounts[1];
+  const FUND_WALLET_1 = accounts[1];
+  const FUND_WALLET_2 = accounts[6];
   const PURCHASER_1 = accounts[2];
   const PURCHASER_2 = accounts[3];
   const SOME_ACCOUNT = accounts[4];
+  const SOME_OTHER_ACCOUNT = accounts[7];
   const ADMINS = [OWNER, PURCHASER_1, PURCHASER_2];
   const NOT_ADMIN = accounts[5];
 
@@ -36,7 +37,7 @@ contract('VIVACrowdsaleData', async (accounts) => {
 
   async function testHelper(test, rounds, admins, startShift) {
     const instance = await factory.crowdsaleDataInstance(
-      FUND_WALLET,
+      FUND_WALLET_1,
       rounds || ROUNDS,
       admins || ADMINS,
       (startShift == null ? testUtils.DAY : startShift),
@@ -57,7 +58,7 @@ contract('VIVACrowdsaleData', async (accounts) => {
       owner = await VIVAToken.at(token).owner();
       expect(owner).to.equal(instance.address);
       let wallet = await instance.wallet();
-      expect(wallet).to.equal(FUND_WALLET);
+      expect(wallet).to.equal(FUND_WALLET_1);
     });
   });
 
@@ -100,6 +101,21 @@ contract('VIVACrowdsaleData', async (accounts) => {
       await instance.mintTokens(SOME_ACCOUNT, 50, {
         from: NOT_ADMIN
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+    });
+  });
+
+  it('should revoke minted tokens', () => {
+    return testHelper(async (instance) => {
+      await instance.mintTokens(SOME_ACCOUNT, 50);
+      let token = await instance.token();
+      let balance = await VIVAToken.at(token).balanceOf(SOME_ACCOUNT);
+      expect(balance.toNumber()).to.equal(50);
+      await instance.revokeMint(SOME_ACCOUNT, 50, {
+        from: NOT_ADMIN
+      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.revokeMint(SOME_ACCOUNT, 50);
+      balance = await VIVAToken.at(token).balanceOf(SOME_ACCOUNT);
+      expect(balance.toNumber()).to.equal(0);
     });
   });
 
@@ -177,7 +193,7 @@ contract('VIVACrowdsaleData', async (accounts) => {
       let round = await instance.rounds(0);
       let refundable = await VIVACrowdsaleRound.at(round).refundable();
       expect(refundable).to.be.false;
-      let initialWalletBalance = web3.eth.getBalance(FUND_WALLET);
+      let initialWalletBalance = web3.eth.getBalance(FUND_WALLET_1);
       const value = web3.toWei(1, 'ether');
       // First purchase
       await instance.registerPurchase(round, PURCHASER_1, 50, {
@@ -189,7 +205,7 @@ contract('VIVACrowdsaleData', async (accounts) => {
       let balance = web3.eth.getBalance(vault);
       expect(balance.toString()).to.equal(web3.toWei(0, 'ether'));
       // Check wallet balance
-      balance = web3.eth.getBalance(FUND_WALLET);
+      balance = web3.eth.getBalance(FUND_WALLET_1);
       assert.equal(balance.toNumber() - initialWalletBalance.toNumber(), value);
     });
   });
@@ -289,42 +305,121 @@ contract('VIVACrowdsaleData', async (accounts) => {
     });
   });
 
-  /*
-  it('should allow changing wallet address when not finalized', () => {
+  it('should allow changing wallet address when not finalized and not refundable', () => {
     return testHelper(async (instance) => {
-
+      let round = await instance.rounds(0);
+      let refundable = await VIVACrowdsaleRound.at(round).refundable();
+      expect(refundable).to.be.false;
+      const value = web3.toWei(1, 'ether');
+      // First purchase goes to fund wallet 1
+      let fundWallet1Balance1 = web3.eth.getBalance(FUND_WALLET_1);
+      await instance.registerPurchase(round, PURCHASER_1, 50, {
+        value,
+        from: PURCHASER_1
+      });
+      let fundWallet1Balance2 = web3.eth.getBalance(FUND_WALLET_1);
+      assert.equal(fundWallet1Balance2.toNumber() - fundWallet1Balance1.toNumber(), value);
+      // Change wallet address
+      await instance.setWallet('0x0').should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.setWallet(FUND_WALLET_2);
+      // Second purchase goes to fund wallet 2
+      let fundWallet2Balance1 = web3.eth.getBalance(FUND_WALLET_2);
+      await instance.registerPurchase(round, PURCHASER_1, 50, {
+        value,
+        from: PURCHASER_1
+      });
+      let fundWallet2Balance2 = web3.eth.getBalance(FUND_WALLET_2);
+      assert.equal(fundWallet2Balance2.toNumber() - fundWallet2Balance1.toNumber(), value);
+      let fundWallet1Balance3 = web3.eth.getBalance(FUND_WALLET_1);
+      assert.equal(fundWallet1Balance2.toNumber(), fundWallet1Balance3.toNumber());
+      // Finalize, cannot change wallet
+      await instance.finalize(SOME_ACCOUNT, false);
+      await instance.setWallet(FUND_WALLET_1).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     });
   });
 
   it('should set large investor wei if not finalized', () => {
     return testHelper(async (instance) => {
-
+      let wei = await instance.largeInvestorWei();
+      const change = 1000;
+      await instance.setLargeInvestorWei(new BigNumber(wei.toString()).plus(change).toString());
+      let wei2 = await instance.largeInvestorWei();
+      expect(new BigNumber(wei2.toString()).minus(new BigNumber(wei.toString())).toNumber()).to.equal(change);
+      await instance.setLargeInvestorWei(new BigNumber(wei2.toString()).plus(change).toString(), {
+        from: NOT_ADMIN
+      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.finalize(SOME_ACCOUNT, false);
+      await instance.setLargeInvestorWei(new BigNumber(wei2.toString()).plus(change).toString()).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     });
   });
 
   it('should set large investor approval if not admin', () => {
     return testHelper(async (instance) => {
-
+      let approval = await instance.getLargeInvestorApproval(SOME_ACCOUNT);
+      expect(approval.toNumber()).to.equal(0);
+      let limit = await instance.largeInvestorWei();
+      const newLimit = limit.toNumber() + 1000;
+      await instance.setLargeInvestorApproval(SOME_ACCOUNT, newLimit, {
+        from: NOT_ADMIN
+      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.setLargeInvestorApproval(SOME_ACCOUNT, limit.toNumber() - 1000).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.setLargeInvestorApproval(SOME_ACCOUNT, newLimit);
+      let approval2 = await instance.getLargeInvestorApproval(SOME_ACCOUNT);
+      expect(approval2.toNumber()).to.equal(newLimit);
+      let otherApproval = await instance.getLargeInvestorApproval(SOME_OTHER_ACCOUNT);
+      expect(otherApproval.toNumber()).to.equal(0);
     });
   });
 
-  it('should return large investor approval', () => {
+  it('should unregister valid purchase', () => {
     return testHelper(async (instance) => {
-
+      const value = web3.toWei(1, 'ether');
+      let round = await instance.rounds(0);
+      // First purchase
+      await instance.registerPurchase(round, PURCHASER_1, 50, {
+        value,
+        from: PURCHASER_1
+      });
+      await instance.mintTokens(PURCHASER_1, 50);
+      let contributed = await instance.getWeiContributed(PURCHASER_1);
+      expect(contributed.toString()).to.equal(value);
+      let weiRaised = await instance.weiRaisedForSale();
+      expect(weiRaised.toString()).to.equal(value);
+      let mintedForSaleTokens = await instance.mintedForSaleTokens();
+      expect(mintedForSaleTokens.toNumber()).to.equal(50);
+      await instance.unregisterPurchase(PURCHASER_1, 50, contributed, {
+        from: NOT_ADMIN
+      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.unregisterPurchase(PURCHASER_1, 50, contributed);
+      await instance.unregisterPurchase(PURCHASER_1, 0, 0); // No effect
+      contributed = await instance.getWeiContributed(PURCHASER_1);
+      expect(contributed.toNumber()).to.equal(0);
+      weiRaised = await instance.weiRaisedForSale();
+      expect(weiRaised.toNumber()).to.equal(0);
+      mintedForSaleTokens = await instance.mintedForSaleTokens();
+      expect(mintedForSaleTokens.toNumber()).to.equal(0);
     });
   });
 
-  it('should blacklist token holder during minting', () => {
+  it('should not unregister invalid purchase', () => {
     return testHelper(async (instance) => {
-
+      const value = web3.toWei(1, 'ether');
+      let round = await instance.rounds(0);
+      // First purchase
+      await instance.registerPurchase(round, PURCHASER_1, 50, {
+        value,
+        from: PURCHASER_1
+      });
+      let contributed = await instance.getWeiContributed(PURCHASER_1);
+      expect(contributed.toString()).to.equal(value);
+      let weiRaised = await instance.weiRaisedForSale();
+      expect(weiRaised.toString()).to.equal(value);
+      let mintedForSaleTokens = await instance.mintedForSaleTokens();
+      expect(mintedForSaleTokens.toNumber()).to.equal(50);
+      await instance.unregisterPurchase('0x0', 50, contributed).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.unregisterPurchase(PURCHASER_1, 100, contributed).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      await instance.unregisterPurchase(PURCHASER_1, 50, contributed + 1).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     });
   });
-
-  it('should blacklist non-token holder during minting', () => {
-    return testHelper(async (instance) => {
-
-    });
-  });
-  */
 
 });
