@@ -12,7 +12,7 @@ contract('VIVAVestingVault', async (accounts) => {
   const TOKEN_CAP = 100;
 
   it('should initialize properly', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     const now = testUtils.now();
     const d1 = now + (10 * testUtils.DAY);
     const d2 = now + (20 * testUtils.DAY);
@@ -24,7 +24,7 @@ contract('VIVAVestingVault', async (accounts) => {
   });
 
   it('should register beneficiaries if admin', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     const now = testUtils.now();
     const d1 = now + (10 * testUtils.DAY);
     const d2 = now + (20 * testUtils.DAY);
@@ -38,7 +38,7 @@ contract('VIVAVestingVault', async (accounts) => {
   });
 
   it('should not register beneficiaries if not admin', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     const now = testUtils.now();
     const d1 = now + (10 * testUtils.DAY);
     const d2 = now + (20 * testUtils.DAY);
@@ -51,7 +51,7 @@ contract('VIVAVestingVault', async (accounts) => {
   });
 
   it('should calculate correct releasable amounts', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     const now = testUtils.now();
     const d1 = now + (10 * testUtils.DAY);
     const d2 = now + (20 * testUtils.DAY);
@@ -76,8 +76,34 @@ contract('VIVAVestingVault', async (accounts) => {
     assert(releasable == mintTokens / 2);
   });
 
+  it('should calculate correct releasable amounts with d1=d2', async () => {
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
+    const now = testUtils.now();
+    const d1 = now + (365 * testUtils.DAY);
+    const d2 = now + (365 * testUtils.DAY);
+    let vaultInstance = await VIVAVestingVault.new(tokenInstance.address, d1, d2, true);
+    const mintTokens = 100;
+    await tokenInstance.mint(vaultInstance.address, mintTokens);
+    await vaultInstance.setAdmin(accounts[1], true);
+    await vaultInstance.register(accounts[2], mintTokens / 2, {
+      from: accounts[1]
+    });
+    let releasable = await vaultInstance.releasableAmount(accounts[2]);
+    assert(releasable == 0);
+    await vaultInstance.setNow(d1);
+    releasable = await vaultInstance.releasableAmount(accounts[2]);
+    assert(releasable == mintTokens / 4);
+    await vaultInstance.setNow(d2);
+    releasable = await vaultInstance.releasableAmount(accounts[2]);
+    assert(releasable == mintTokens / 4);
+    releasable = await vaultInstance.releasableAmount(accounts[2], {
+      from: accounts[1]
+    });
+    assert(releasable == mintTokens / 2);
+  });
+
   it('should not allow release of tokens exceeding releasable', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     const now = testUtils.now();
     const d1 = now + (10 * testUtils.DAY);
     const d2 = now + (20 * testUtils.DAY);
@@ -128,7 +154,7 @@ contract('VIVAVestingVault', async (accounts) => {
   });
 
   it('should calculate correct releasable tokens after release', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     const now = testUtils.now();
     const d1 = now + (10 * testUtils.DAY);
     const d2 = now + (20 * testUtils.DAY);
@@ -185,7 +211,7 @@ contract('VIVAVestingVault', async (accounts) => {
   });
 
   it('should not allow release of more tokens than minted', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     const now = testUtils.now();
     const d1 = now + (10 * testUtils.DAY);
     const d2 = now + (20 * testUtils.DAY);

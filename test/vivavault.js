@@ -12,7 +12,7 @@ contract('VIVAVault', async (accounts) => {
   const TOKEN_CAP = 100;
 
   it('should initialize properly', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
@@ -22,10 +22,9 @@ contract('VIVAVault', async (accounts) => {
   });
 
   it('should allow admin to release tokens if not frozen', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const now = testUtils.now();
-    await tokenInstance.freezeUntil(now - (10 * testUtils.DAY));
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
     let balance = await tokenInstance.balanceOf(vaultInstance.address);
@@ -41,10 +40,9 @@ contract('VIVAVault', async (accounts) => {
   });
 
   it('should not allow release tokens if not admin', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const now = testUtils.now();
-    await tokenInstance.freezeUntil(now - (10 * testUtils.DAY));
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
     let balance = await tokenInstance.balanceOf(vaultInstance.address);
@@ -55,20 +53,18 @@ contract('VIVAVault', async (accounts) => {
   });
 
   it('should not allow owner to release tokens if not admin', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const now = testUtils.now();
-    await tokenInstance.freezeUntil(now - (10 * testUtils.DAY));
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
     await vaultInstance.release(accounts[1], mintTokens).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
   });
 
   it('should not allow admin to release more tokens that available', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const now = testUtils.now();
-    await tokenInstance.freezeUntil(now - (10 * testUtils.DAY));
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
     let balance = await tokenInstance.balanceOf(vaultInstance.address);
@@ -81,11 +77,11 @@ contract('VIVAVault', async (accounts) => {
     assert(balance == mintTokens);
   });
 
-  it('should not allow admin to release tokens if frozen', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+  it('should not allow admin to release tokens if paused', async () => {
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const now = testUtils.now();
-    await tokenInstance.freezeUntil(now + (10 * testUtils.DAY));
+    await tokenInstance.pause();
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
     await vaultInstance.setAdmin(accounts[1], true);
@@ -95,10 +91,9 @@ contract('VIVAVault', async (accounts) => {
   });
 
   it('should not allow admin to release tokens if all released', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const now = testUtils.now();
-    await tokenInstance.freezeUntil(now - (10 * testUtils.DAY));
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
     await vaultInstance.setAdmin(accounts[1], true);
@@ -118,10 +113,9 @@ contract('VIVAVault', async (accounts) => {
   });
 
   it('should not allow admin to release tokens negative amount', async () => {
-    let tokenInstance = await VIVAToken.new(TOKEN_CAP, 0);
+    let tokenInstance = await VIVAToken.new(TOKEN_CAP);
     let vaultInstance = await VIVAVault.new(tokenInstance.address);
     const now = testUtils.now();
-    await tokenInstance.freezeUntil(now - (10 * testUtils.DAY));
     const mintTokens = 100;
     await tokenInstance.mint(vaultInstance.address, mintTokens);
     await vaultInstance.setAdmin(accounts[1], true);

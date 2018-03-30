@@ -14,6 +14,20 @@ contract VIVACrowdsaleData is Administrated, Testable {
 
   using SafeMath for uint256;
 
+  // Events
+  event Blacklist(address beneficiary, bool _blacklist);
+  event ChangeStartTime(uint256 _startTime);
+  event CloseRefundVault(bool refund);
+  event Finalize(address tokenOwner, bool refundable);
+  event MintTokens(address beneficiary, uint256 tokens);
+  event RegisterPrivateContribution(address beneficiary, uint256 tokens);
+  event RegisterPurchase(VIVACrowdsaleRound round, address beneficiary, uint256 tokens, uint256 weiAmount);
+  event RevokeMint(address beneficiary, uint256 tokens);
+  event SetLargeInvestorApproval(address beneficiary, uint256 weiLimit);
+  event SetLargeInvestorWei(uint256 _largeInvestorWei);
+  event SetWallet(address _wallet);
+  event UnregisterPurchase(address beneficiary, uint256 tokens, uint256 weiAmount);
+
   uint256 public constant tokensTotalSupply = 4000000000;
   VIVAToken public token;
 
@@ -55,7 +69,8 @@ contract VIVACrowdsaleData is Administrated, Testable {
       wallet = _wallet;
       startTime = _startTime;
       refundVault = new VIVARefundVault(_wallet);
-      token = new VIVAToken(tokensTotalSupply, ~uint256(0));
+      token = new VIVAToken(tokensTotalSupply);
+      token.pause();
   }
 
   function getNumRounds() public view returns (uint256) {
@@ -69,17 +84,20 @@ contract VIVACrowdsaleData is Administrated, Testable {
 
   function setStartTime(uint256 _startTime) public onlyAdmin {
     startTime = _startTime;
+    ChangeStartTime(_startTime);
   }
 
   function mintTokens(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
     require(beneficiary != address(0));
     require(tokens > 0);
+    MintTokens(beneficiary, tokens);
     return token.mint(beneficiary, tokens);
   }
 
   function revokeMint(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
     require(beneficiary != address(0));
     require(tokens > 0);
+    RevokeMint(beneficiary, tokens);
     return token.revokeMint(beneficiary, tokens);
   }
 
@@ -87,6 +105,7 @@ contract VIVACrowdsaleData is Administrated, Testable {
     require(beneficiary != address(0));
     require(tokens > 0);
     privateContributionTokens = privateContributionTokens.add(tokens);
+    RegisterPrivateContribution(beneficiary, tokens);
     return true;
   }
 
@@ -103,6 +122,7 @@ contract VIVACrowdsaleData is Administrated, Testable {
     weiContributed[beneficiary] = msg.value.add(weiContributed[beneficiary]);
     weiRaisedForSale = weiRaisedForSale.add(msg.value);
     mintedForSaleTokens = mintedForSaleTokens.add(tokens);
+    RegisterPurchase(round, beneficiary, tokens, msg.value);
     return true;
   }
 
@@ -116,6 +136,7 @@ contract VIVACrowdsaleData is Administrated, Testable {
     } else {
       refundVault.close();
     }
+    CloseRefundVault(refund);
   }
 
   function finalize(address tokenOwner, bool refundable) public onlyAdmin {
@@ -127,6 +148,7 @@ contract VIVACrowdsaleData is Administrated, Testable {
     }
     token.finishMinting();
     token.transferOwnership(tokenOwner);
+    Finalize(tokenOwner, refundable);
   }
 
   function setWallet(address _wallet) public onlyAdmin {
@@ -134,12 +156,14 @@ contract VIVACrowdsaleData is Administrated, Testable {
     require(_wallet != address(0));
     wallet = _wallet;
     refundVault.setWallet(_wallet);
+    SetWallet(_wallet);
   }
 
   function setLargeInvestorWei(uint256 _largeInvestorWei) public onlyAdmin {
     require(!isFinalized);
     require(_largeInvestorWei >= 0);
     largeInvestorWei = _largeInvestorWei;
+    SetLargeInvestorWei(_largeInvestorWei);
   }
 
   function getLargeInvestorApproval(address beneficiary) public view returns (uint256) {
@@ -152,6 +176,7 @@ contract VIVACrowdsaleData is Administrated, Testable {
     require(!isFinalized);
     require(weiLimit >= largeInvestorWei);
     approvedLargeInvestors[beneficiary] = weiLimit;
+    SetLargeInvestorApproval(beneficiary, weiLimit);
   }
 
   function isBlacklisted(address beneficiary) public view returns (bool) {
@@ -162,6 +187,7 @@ contract VIVACrowdsaleData is Administrated, Testable {
   function blacklist(address beneficiary, bool _blacklist) public onlyAdmin {
     require(beneficiary != address(0));
     blacklisted[beneficiary] = _blacklist;
+    Blacklist(beneficiary, _blacklist);
   }
 
   function unregisterPurchase(address beneficiary, uint256 tokens, uint256 weiAmount) public onlyAdmin returns (bool) {
@@ -172,6 +198,8 @@ contract VIVACrowdsaleData is Administrated, Testable {
     mintedForSaleTokens = mintedForSaleTokens.sub(tokens);
     weiRaisedForSale = weiRaisedForSale.sub(weiAmount);
     weiContributed[beneficiary] = weiContributed[beneficiary].sub(weiAmount);
+    UnregisterPurchase(beneficiary, tokens, weiAmount);
+    return true;
   }
 
   function setBountyVault(VIVAVault vault) public onlyAdmin         { bountyVault = vault;  }

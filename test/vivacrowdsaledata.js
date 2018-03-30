@@ -2,6 +2,8 @@ require('chai')
   .use(require('chai-as-promised'))
   .should();
 
+require('truffle-test-utils').init();
+
 const BigNumber = require('bignumber.js');
 
 const testUtils = require('./test-utils');
@@ -29,7 +31,7 @@ contract('VIVACrowdsaleData', async (accounts) => {
   /*
   FIXME A workaround here, we have made purchasers admins for testing
   because registerPurchase is restricted to direct call by admin, but
-  also expects accompanying ETH payment. It is intended to be called 
+  also expects accompanying ETH payment. It is intended to be called
   by the (administrative) main VIVACrowdsale contract forwarding origin's
   ETH payment. But I cannot figure out how to simulate this in Truffle
   (i.e. send ETH payment from wallet X while calling from wallet Y).
@@ -62,13 +64,11 @@ contract('VIVACrowdsaleData', async (accounts) => {
     });
   });
 
-  it('should initially freeze token indefinitely', () => {
+  it('should initially pause token', () => {
     return testHelper(async (instance) => {
       let token = await instance.token();
-      let frozen = await VIVAToken.at(token).isFrozen(testUtils.now());
-      expect(frozen).to.be.true;
-      frozen = await VIVAToken.at(token).isFrozen(testUtils.now() + (1000 * 365 * testUtils.DAY));
-      expect(frozen).to.be.true;
+      let paused = await VIVAToken.at(token).paused();
+      expect(paused).to.be.true;
     });
   });
 
@@ -83,7 +83,8 @@ contract('VIVACrowdsaleData', async (accounts) => {
     return testHelper(async (instance) => {
       let firstStartTime = await instance.startTime();
       expect(firstStartTime.toNumber()).to.be.greaterThan(0);
-      await instance.setStartTime(firstStartTime.toNumber() + testUtils.DAY);
+      let result = await instance.setStartTime(firstStartTime.toNumber() + testUtils.DAY);
+      expect(testUtils.hadEvent(result, 'ChangeStartTime')).to.be.true;
       let secondStartTime = await instance.startTime();
       expect(secondStartTime.toNumber() - firstStartTime.toNumber()).to.equal(testUtils.DAY);
       await instance.setStartTime(secondStartTime + testUtils.DAY, {
@@ -94,7 +95,8 @@ contract('VIVACrowdsaleData', async (accounts) => {
 
   it('should mint tokens', () => {
     return testHelper(async (instance) => {
-      await instance.mintTokens(SOME_ACCOUNT, 50);
+      let result = await instance.mintTokens(SOME_ACCOUNT, 50);
+      expect(testUtils.hadEvent(result, 'MintTokens')).to.be.true;
       let token = await instance.token();
       let balance = await VIVAToken.at(token).balanceOf(SOME_ACCOUNT);
       expect(balance.toNumber()).to.equal(50);
@@ -106,14 +108,16 @@ contract('VIVACrowdsaleData', async (accounts) => {
 
   it('should revoke minted tokens', () => {
     return testHelper(async (instance) => {
-      await instance.mintTokens(SOME_ACCOUNT, 50);
+      let result = await instance.mintTokens(SOME_ACCOUNT, 50);
+      expect(testUtils.hadEvent(result, 'MintTokens')).to.be.true;
       let token = await instance.token();
       let balance = await VIVAToken.at(token).balanceOf(SOME_ACCOUNT);
       expect(balance.toNumber()).to.equal(50);
       await instance.revokeMint(SOME_ACCOUNT, 50, {
         from: NOT_ADMIN
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      await instance.revokeMint(SOME_ACCOUNT, 50);
+      result = await instance.revokeMint(SOME_ACCOUNT, 50);
+      expect(testUtils.hadEvent(result, 'RevokeMint')).to.be.true;
       balance = await VIVAToken.at(token).balanceOf(SOME_ACCOUNT);
       expect(balance.toNumber()).to.equal(0);
     });
@@ -121,7 +125,8 @@ contract('VIVACrowdsaleData', async (accounts) => {
 
   it('should register private contributions', () => {
     return testHelper(async (instance) => {
-      await instance.registerPrivateContribution(PURCHASER_1, 50);
+      let result = await instance.registerPrivateContribution(PURCHASER_1, 50);
+      expect(testUtils.hadEvent(result, 'RegisterPrivateContribution')).to.be.true;
       let privateContributionTokens = await instance.privateContributionTokens();
       expect(privateContributionTokens.toNumber()).to.equal(50);
       await instance.registerPrivateContribution(PURCHASER_2, 50);
@@ -143,10 +148,11 @@ contract('VIVACrowdsaleData', async (accounts) => {
       expect(refundable).to.be.true;
       const value = web3.toWei(1, 'ether');
       // First purchase
-      await instance.registerPurchase(round, PURCHASER_1, 50, {
+      let result = await instance.registerPurchase(round, PURCHASER_1, 50, {
         value,
         from: PURCHASER_1
       });
+      expect(testUtils.hadEvent(result, 'RegisterPurchase')).to.be.true;
       let contributed = await instance.getWeiContributed(PURCHASER_1);
       expect(contributed.toString()).to.equal(value);
       let weiRaised = await instance.weiRaisedForSale();
@@ -242,7 +248,10 @@ contract('VIVACrowdsaleData', async (accounts) => {
       await instance.closeRefundVault(true, {
         from: NOT_ADMIN
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      await instance.closeRefundVault(true);
+      let result = await instance.closeRefundVault(true);
+      expect(testUtils.hadEvent(result, 'CloseRefundVault', {
+        refund: true
+      })).to.be.true;
       const vault = await instance.refundVault();
       await VIVARefundVault.at(vault).refund(PURCHASER_1);
       balance = web3.eth.getBalance(PURCHASER_1);
@@ -267,7 +276,10 @@ contract('VIVACrowdsaleData', async (accounts) => {
       let balance = web3.eth.getBalance(PURCHASER_1);
       let expectedSpent = new BigNumber(value).plus(gasUsed);
       assert.equal(new BigNumber(initialWalletBalance.toString()).minus(new BigNumber(balance.toString())).toString(), expectedSpent.toString());
-      await instance.closeRefundVault(false);
+      let result = await instance.closeRefundVault(false);
+      expect(testUtils.hadEvent(result, 'CloseRefundVault', {
+        refund: false
+      })).to.be.true;
       const vault = await instance.refundVault();
       await VIVARefundVault.at(vault).refund(PURCHASER_1).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
       let balance2 = web3.eth.getBalance(PURCHASER_1);
@@ -280,7 +292,11 @@ contract('VIVACrowdsaleData', async (accounts) => {
       await instance.finalize(SOME_ACCOUNT, false, {
         from: NOT_ADMIN
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      await instance.finalize(SOME_ACCOUNT, false);
+      let result = await instance.finalize(SOME_ACCOUNT, false);
+      expect(testUtils.hadEvent(result, 'Finalize', {
+        tokenOwner: SOME_ACCOUNT,
+        refundable: false
+      })).to.be.true;
       let isFinalized = await instance.isFinalized();
       expect(isFinalized).to.be.true;
       let refundVaultClosed = await instance.refundVaultClosed();
@@ -290,7 +306,8 @@ contract('VIVACrowdsaleData', async (accounts) => {
 
   it('should not allow subsequent finalization', () => {
     return testHelper(async (instance) => {
-      await instance.finalize(SOME_ACCOUNT, false);
+      let result = await instance.finalize(SOME_ACCOUNT, false);
+      expect(testUtils.hadEvent(result, 'Finalize')).to.be.true;
       await instance.finalize(SOME_ACCOUNT, false).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     });
   });
@@ -321,7 +338,10 @@ contract('VIVACrowdsaleData', async (accounts) => {
       assert.equal(fundWallet1Balance2.toNumber() - fundWallet1Balance1.toNumber(), value);
       // Change wallet address
       await instance.setWallet('0x0').should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      await instance.setWallet(FUND_WALLET_2);
+      let result = await instance.setWallet(FUND_WALLET_2);
+      expect(testUtils.hadEvent(result, 'SetWallet', {
+        _wallet: FUND_WALLET_2
+      })).to.be.true;
       // Second purchase goes to fund wallet 2
       let fundWallet2Balance1 = web3.eth.getBalance(FUND_WALLET_2);
       await instance.registerPurchase(round, PURCHASER_1, 50, {
@@ -342,7 +362,8 @@ contract('VIVACrowdsaleData', async (accounts) => {
     return testHelper(async (instance) => {
       let wei = await instance.largeInvestorWei();
       const change = 1000;
-      await instance.setLargeInvestorWei(new BigNumber(wei.toString()).plus(change).toString());
+      let result = await instance.setLargeInvestorWei(new BigNumber(wei.toString()).plus(change).toString());
+      expect(testUtils.hadEvent(result, 'SetLargeInvestorWei')).to.be.true;
       let wei2 = await instance.largeInvestorWei();
       expect(new BigNumber(wei2.toString()).minus(new BigNumber(wei.toString())).toNumber()).to.equal(change);
       await instance.setLargeInvestorWei(new BigNumber(wei2.toString()).plus(change).toString(), {
@@ -363,7 +384,11 @@ contract('VIVACrowdsaleData', async (accounts) => {
         from: NOT_ADMIN
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
       await instance.setLargeInvestorApproval(SOME_ACCOUNT, limit.toNumber() - 1000).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      await instance.setLargeInvestorApproval(SOME_ACCOUNT, newLimit);
+      let result = await instance.setLargeInvestorApproval(SOME_ACCOUNT, newLimit);
+      expect(testUtils.hadEvent(result, 'SetLargeInvestorApproval', {
+        beneficiary: SOME_ACCOUNT,
+        weiLimit: newLimit
+      })).to.be.true;
       let approval2 = await instance.getLargeInvestorApproval(SOME_ACCOUNT);
       expect(approval2.toNumber()).to.equal(newLimit);
       let otherApproval = await instance.getLargeInvestorApproval(SOME_OTHER_ACCOUNT);
@@ -376,10 +401,11 @@ contract('VIVACrowdsaleData', async (accounts) => {
       const value = web3.toWei(1, 'ether');
       let round = await instance.rounds(0);
       // First purchase
-      await instance.registerPurchase(round, PURCHASER_1, 50, {
+      let result = await instance.registerPurchase(round, PURCHASER_1, 50, {
         value,
         from: PURCHASER_1
       });
+      expect(testUtils.hadEvent(result, 'RegisterPurchase')).to.be.true;
       await instance.mintTokens(PURCHASER_1, 50);
       let contributed = await instance.getWeiContributed(PURCHASER_1);
       expect(contributed.toString()).to.equal(value);
@@ -390,7 +416,8 @@ contract('VIVACrowdsaleData', async (accounts) => {
       await instance.unregisterPurchase(PURCHASER_1, 50, contributed, {
         from: NOT_ADMIN
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      await instance.unregisterPurchase(PURCHASER_1, 50, contributed);
+      result = await instance.unregisterPurchase(PURCHASER_1, 50, contributed);
+      expect(testUtils.hadEvent(result, 'UnregisterPurchase')).to.be.true;
       await instance.unregisterPurchase(PURCHASER_1, 0, 0); // No effect
       contributed = await instance.getWeiContributed(PURCHASER_1);
       expect(contributed.toNumber()).to.equal(0);

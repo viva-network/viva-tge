@@ -14,14 +14,16 @@ contract('VIVAToken', async (accounts) => {
 
   it('should initialize properly', async () => {
     const now = testUtils.now();
-    const instance = await VIVAToken.new(CAP, now + (3 + (10 * testUtils.DAY)));
-    let isFrozen = await instance.isFrozen(now);
-    expect(isFrozen).to.be.true;
+    const instance = await VIVAToken.new(CAP);
+    await instance.pause();
+    let isPaused = await instance.paused();
+    expect(isPaused).to.be.true;
   });
 
   it('should allow revoking mint if owner', async () => {
     const now = testUtils.now();
-    const instance = await VIVAToken.new(CAP, now + (3 + (10 * testUtils.DAY)));
+    const instance = await VIVAToken.new(CAP);
+    await instance.pause();
     await instance.mint(accounts[1], 50);
     let balance = await instance.balanceOf(accounts[1]);
     assert(balance.toNumber() == 50);
@@ -39,7 +41,8 @@ contract('VIVAToken', async (accounts) => {
 
   it('should not allow revoking mint if not owner', async () => {
     const now = testUtils.now();
-    const instance = await VIVAToken.new(CAP, now + (3 + (10 * testUtils.DAY)));
+    const instance = await VIVAToken.new(CAP);
+    await instance.pause();
     await instance.mint(accounts[1], 50);
     let balance = await instance.balanceOf(accounts[1]);
     assert(balance.toNumber() == 50);
@@ -50,7 +53,8 @@ contract('VIVAToken', async (accounts) => {
 
   it('should not allow revoking mint if not minting', async () => {
     const now = testUtils.now();
-    const instance = await VIVAToken.new(CAP, now + (3 + (10 * testUtils.DAY)));
+    const instance = await VIVAToken.new(CAP);
+    await instance.pause();
     await instance.mint(accounts[1], 50);
     let balance = await instance.balanceOf(accounts[1]);
     assert(balance.toNumber() == 50);

@@ -12,6 +12,9 @@ contract VIVACrowdsale is Administrated, Testable {
 
   using SafeMath for uint256;
 
+  // Events (more bubble up from VIVACrowdsaleData)
+  event Cancelled();
+
   // ms time constants
   uint256 public constant SECOND = 1000;
   uint256 public constant MINUTE = SECOND * 60;
@@ -51,10 +54,6 @@ contract VIVACrowdsale is Administrated, Testable {
     assert(data.mintTokens(beneficiary, tokens));
   }
 
-  function () external payable {
-    buyTokens();
-  }
-
   function getCurrentRound(uint256 valuationDate, uint256 weiRaisedForSale) public view returns (VIVACrowdsaleRound) {
     uint256 time = data.startTime();
     bool hadTimeRange = false;
@@ -81,6 +80,10 @@ contract VIVACrowdsale is Administrated, Testable {
     require(address(round) != address(0));
     if(weiAmount == 0) return 0;
     return weiAmount.div(round.getBonusRate(baseRate, weiAmount));
+  }
+
+  function () external payable {
+    buyTokens();
   }
 
   function buyTokens() public payable {
@@ -139,6 +142,7 @@ contract VIVACrowdsale is Administrated, Testable {
   function cancel() onlyAdmin public {
     require(!data.isFinalized());
     data.finalize(msg.sender, true);
+    Cancelled();
   }
 
   function finalize() onlyAdmin public {
@@ -178,6 +182,7 @@ contract VIVACrowdsale is Administrated, Testable {
       assert(data.revokeMint(beneficiary, tokensOwned));
     }
     assert(data.unregisterPurchase(beneficiary, tokensOwned, data.getWeiContributed(beneficiary)));
+    data.blacklist(beneficiary, true);
   }
 
 }

@@ -51,8 +51,8 @@ contract VIVAVestingVault is Administrated, Testable {
     }
     require(token.balanceOf(this) >= toRelease);
     assert(released[beneficiary].add(toRelease) <= totalDue[beneficiary]);
-    assert(token.transfer(beneficiary, toRelease));
     released[beneficiary] = released[beneficiary].add(toRelease);
+    assert(token.transfer(beneficiary, toRelease));
     Released(beneficiary, toRelease);
   }
 
@@ -73,6 +73,7 @@ contract VIVAVestingVault is Administrated, Testable {
   }
 
   function setSchedule(uint256 _d1, uint256 _d2) public onlyAdmin {
+    require(_d1 <= _d2);
     d1 = _d1;
     d2 = _d2;
   }

@@ -6,9 +6,57 @@ function now() {
   return web3.eth.getBlock(web3.eth.blockNumber).timestamp;
 }
 
+async function subContractHadEvent(instance, name, args) {
+  const allEvents = instance.allEvents({
+    fromBlock: 0,
+    toBlock: 'latest'
+  });
+  return new Promise((fulfill, reject) => {
+    allEvents.get((err, res) => {
+      if (err) {
+        reject(err);
+        return;
+      } else {
+        fulfill(_hadEvent(res, name, args));
+      }
+    });
+  });
+}
+
+function hadEvent(result, name, args) {
+  return _hadEvent(result.logs, name, args);
+}
+
+function _hadEvent(events, name, args) {
+  if (events) {
+    for (const event of events) {
+      if (event.event === name) {
+        if (!args) {
+          return true;
+        } else if (event.args) {
+          for (const arg of Object.keys(args)) {
+            let expected = args[arg];
+            let actual = event.args[arg];
+            if (actual && typeof actual.toNumber === 'function') { // Use the toString though
+              actual = actual.toString();
+            }
+            if (expected != actual) {
+              return false;
+            }
+          }
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 module.exports = {
   DAY,
   REQUIRE_FAIL,
   _0x0,
-  now
+  now,
+  hadEvent,
+  subContractHadEvent
 };
