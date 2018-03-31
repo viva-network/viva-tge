@@ -27,33 +27,32 @@ module.exports = function(deployer, network, accounts) {
   // TODO Promise hell but I just want it to work at this point
   deployer.deploy(VIVAToken, tokensTotalSupply).then(() => {
     return VIVAToken.deployed().then((token) => {
-      // token.pause();
-      // return deployer.deploy(
-      //   VIVACrowdsaleData,
-      //   token,
-      //   wallet,
-      //   startTime,
-      //   testing
-      // ).then(() => {
-      //   return deployer.deploy(VIVACrowdsale, VIVACrowdsaleData.address, testing).then(() => {
-      //     return VIVACrowdsaleData.deployed().then((data) => {
-      //       token.transferOwnership(VIVACrowdsaleData.address);
-      //       return data.setAdmin(VIVACrowdsaleData.address, true, {
-      //         from: accounts[0]
-      //       }).then(() => {
-      //         return data.setAdmin(accounts[0], true, {
-      //           from: accounts[0]
-      //         }).then(() => {
-      //           return VIVACrowdsale.deployed().then((crowdsale) => {
-      //             return crowdsale.setAdmin(accounts[0], true, {
-      //               from: accounts[0]
-      //             });
-      //           });
-      //         });
-      //       });
-      //     });
-      //   });
-      // });
+      console.log(`*** Deployed VIVAToken ${VIVAToken.address}`);
+      return deployer.deploy(
+        VIVACrowdsaleData,
+        VIVAToken.address,
+        wallet,
+        startTime
+      ).then(() => {
+        return VIVACrowdsaleData.deployed().then((data) => {
+          console.log(`*** Deployed VIVACrowdsaleData ${VIVACrowdsaleData.address}`);
+          return deployer.deploy(VIVACrowdsale, VIVACrowdsaleData.address, testing).then(() => {
+            return VIVACrowdsale.deployed().then((crowdsale) => {
+              console.log(`*** Deployed VIVACrowdsale ${VIVACrowdsale.address}`);
+              console.log(`Setting ${accounts[0]} as admin on VIVACrowdsaleData`);
+              console.log(`Setting ${accounts[0]} as admin on VIVACrowdsale`);
+              console.log(`Setting VIVACrowdsale ${VIVACrowdsale.address} as admin on VIVACrowdsaleData`);
+              return Promise.all([
+                token.pause(),
+                token.transferOwnership(VIVACrowdsaleData.address),
+                data.setAdmin(accounts[0], true),
+                crowdsale.setAdmin(accounts[0], true),
+                data.setAdmin(VIVACrowdsale.address, true)
+              ]);
+            });
+          });
+        });
+      });
     });
   });
 

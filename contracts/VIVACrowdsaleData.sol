@@ -2,16 +2,13 @@ pragma solidity 0.4.19;
 
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 
-import './Testable.sol';
 import './Administrated.sol';
 import './VIVACrowdsaleRound.sol';
 import './VIVAToken.sol';
 import './VIVARefundVault.sol';
 import './CrowdsaleTokenUtils.sol';
-import './VIVAVestingVault.sol';
-import './VIVAVault.sol';
 
-contract VIVACrowdsaleData is Administrated, Testable {
+contract VIVACrowdsaleData is Administrated {
 
   using SafeMath for uint256;
 
@@ -38,10 +35,10 @@ contract VIVACrowdsaleData is Administrated, Testable {
   bool public refundVaultClosed = false;
 
   // Distribution vaults
-  VIVAVault public bountyVault;
-  VIVAVault public reserveVault;
-  VIVAVestingVault public teamVault;
-  VIVAVestingVault public advisorVault;
+  address public bountyVault;
+  address public reserveVault;
+  address public teamVault;
+  address public advisorVault;
 
   // Track general sale progress
   uint256 public privateContributionTokens;
@@ -56,9 +53,8 @@ contract VIVACrowdsaleData is Administrated, Testable {
   function VIVACrowdsaleData(
     VIVAToken _token,
     address _wallet,
-    uint256 _startTime,
-    bool _testing
-  ) Testable(_testing) public {
+    uint256 _startTime
+  )  public {
       require(_token != address(0));
       require(_wallet != address(0));
       token = _token;
@@ -153,9 +149,9 @@ contract VIVACrowdsaleData is Administrated, Testable {
     approvedLargeInvestors[beneficiary] = weiLimit;
   }
 
-  function setBountyVault(VIVAVault vault) public onlyAdmin         { bountyVault = vault;  }
-  function setReserveVault(VIVAVault vault) public onlyAdmin        { reserveVault = vault; }
-  function setTeamVault(VIVAVestingVault vault) public onlyAdmin    { teamVault = vault;    }
-  function setAdvisorVault(VIVAVestingVault vault) public onlyAdmin { advisorVault = vault; }
+  function setBountyVault(address vault) public onlyAdmin  { bountyVault = vault;  }
+  function setReserveVault(address vault) public onlyAdmin { reserveVault = vault; }
+  function setTeamVault(address vault) public onlyAdmin    { teamVault = vault;    }
+  function setAdvisorVault(address vault) public onlyAdmin { advisorVault = vault; }
 
 }

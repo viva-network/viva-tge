@@ -18,7 +18,7 @@ async function crowdsaleDataInstance(wallet, rounds, admins, startShift, tokensT
   const time = web3.eth.getBlock(web3.eth.blockNumber).timestamp;
   let tokenInstance = await VIVAToken.new(tokensTotalSupply);
   await tokenInstance.pause();
-  const instance = await VIVACrowdsaleData.new(tokenInstance.address, wallet, time + startShift, testing);
+  const instance = await VIVACrowdsaleData.new(tokenInstance.address, wallet, time + startShift);
   await tokenInstance.transferOwnership(instance.address);
   for (const admin of admins) {
     await instance.setAdmin(admin, true);
