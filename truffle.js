@@ -1,16 +1,3 @@
-const HDWalletProvider = require('truffle-hdwallet-provider');
-
-const secret = require('./secret');
-
-/* Expects file ./secret.js:
-
-module.exports = {
-  mnemonic: '',
-  infuraToken: ''
-};
-
-*/
-
 module.exports = {
   networks: {
     development: {
@@ -19,10 +6,15 @@ module.exports = {
       network_id: "*"
     },
     ropsten: {
-      provider: function() {
-        return new HDWalletProvider(secret.mnemonic, `https://ropsten.infura.io/${secret.infuraToken}`)
-      },
-      network_id: 3
+      host: '127.0.0.1',
+      port: 8545,
+      network_id: "3",
+      // gas: 4700000,
+      // gasPrice: 300000000000,
+      from: '0x7cbf7371c98ba4d5b15b958d66c53c67b9b590ff'
     }
   }
 };
+
+// build/bin/geth attach http://127.0.0.1:8545
+// build/bin/geth --light --rinkeby --rpc --rpcapi="db,eth,net,web3,personal,web3" --rpccorsdomain '*' --rpcaddr localhost --rpcport 8545

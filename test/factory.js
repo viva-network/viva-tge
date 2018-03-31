@@ -1,6 +1,7 @@
 const VIVACrowdsaleRound = artifacts.require('VIVACrowdsaleRound');
 const VIVACrowdsaleData = artifacts.require('VIVACrowdsaleData');
 const VIVACrowdsale = artifacts.require('VIVACrowdsale');
+const VIVAToken = artifacts.require('VIVAToken');
 
 // FIXME Use in migrations
 
@@ -13,9 +14,12 @@ async function crowdsaleInstance(data, admins, testing) {
   return instance;
 }
 
-async function crowdsaleDataInstance(wallet, rounds, admins, startShift, testing) {
+async function crowdsaleDataInstance(wallet, rounds, admins, startShift, tokensTotalSupply, testing) {
   const time = web3.eth.getBlock(web3.eth.blockNumber).timestamp;
-  const instance = await VIVACrowdsaleData.new(wallet, time + startShift, testing);
+  let tokenInstance = await VIVAToken.new(tokensTotalSupply);
+  await tokenInstance.pause();
+  const instance = await VIVACrowdsaleData.new(tokenInstance.address, wallet, time + startShift, testing);
+  await tokenInstance.transferOwnership(instance.address);
   for (const admin of admins) {
     await instance.setAdmin(admin, true);
   }
@@ -23,7 +27,7 @@ async function crowdsaleDataInstance(wallet, rounds, admins, startShift, testing
   return instance;
   async function addRounds(instance) {
     for (const round of rounds) {
-      const roundInstance = await VIVACrowdsaleRound.new(round.refundable, round.capAtWei, round.capAtDuration);
+      const roundInstance = await VIVACrowdsaleRound.new(round.refundable, round.capAtWei, round.capAtDuration, testing);
       for (const bonus of round.bonuses) {
         await roundInstance.addBonus(bonus.tier, bonus.rate);
       }

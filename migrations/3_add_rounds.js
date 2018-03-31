@@ -10,9 +10,11 @@ const DAY = 1000 * 60 * 60 * 24;
 
 module.exports = function(deployer, network, accounts) {
 
+  return;
+
   function createRound(round) {
     return (createRoundCallback) => {
-      VIVACrowdsaleRound.new(round.refundable, round.capAtWei, round.capAtDuration).then((instance) => {
+      VIVACrowdsaleRound.new(round.refundable, round.capAtWei, round.capAtDuration, false).then((instance) => {
         async.series(round.bonuses.map(createBonus), (err) => {
           if (err) throw err;
           createRoundCallback(null, instance);

@@ -3,7 +3,9 @@ pragma solidity 0.4.19;
 import 'zeppelin-solidity/contracts/math/SafeMath.sol';
 import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
 
-contract VIVACrowdsaleRound is Ownable {
+import './Testable.sol';
+
+contract VIVACrowdsaleRound is Ownable, Testable {
 
   using SafeMath for uint256;
 
@@ -21,8 +23,9 @@ contract VIVACrowdsaleRound is Ownable {
   function VIVACrowdsaleRound(
     bool _refundable,
     uint256 _capAtWei,
-    uint256 _capAtDuration
-  ) public {
+    uint256 _capAtDuration,
+    bool _testing
+  ) Testable(_testing) public {
     refundable = _refundable;
     capAtWei = _capAtWei;
     capAtDuration = _capAtDuration;
@@ -37,6 +40,10 @@ contract VIVACrowdsaleRound is Ownable {
 
   function setCapAtDuration(uint256 _capAtDuration) onlyOwner public returns (uint256) {
     capAtDuration = _capAtDuration;
+  }
+
+  function setCapAtWei(uint256 _capAtWei) onlyOwner whenTesting public {
+    capAtWei = _capAtWei;
   }
 
   function getBonusRate(uint256 baseRate, uint256 weiAmount) public view returns (uint256) {

@@ -26,11 +26,13 @@ contract('VIVACrowdsale', async (accounts) => {
   const FUND_WALLET_2 = accounts[6];
   const PURCHASER_1 = accounts[2];
   const PURCHASER_2 = accounts[3];
+  const PURCHASER_3 = accounts[9];
   const SOME_ACCOUNT = accounts[4];
   const SOME_OTHER_ACCOUNT = accounts[7];
   const ANOTHER_ADMIN = accounts[8];
   const ADMINS = [OWNER, ANOTHER_ADMIN];
   const NOT_ADMIN = accounts[5];
+  const TOKENS_TOTAL_SUPPLY = 4000000000;
 
   async function testHelper(test, rounds, admins, startShift) {
     const data = await factory.crowdsaleDataInstance(
@@ -38,6 +40,7 @@ contract('VIVACrowdsale', async (accounts) => {
       rounds || ROUNDS,
       admins || ADMINS,
       (startShift == null ? testUtils.DAY : startShift),
+      TOKENS_TOTAL_SUPPLY,
       true
     );
     const instance = await factory.crowdsaleInstance(data, admins || ADMINS, true);
@@ -225,11 +228,11 @@ contract('VIVACrowdsale', async (accounts) => {
 
   it('should get correct token amount for all rounds', () => {
     return testHelper(async (instance) => {
-      const baseRate = 28000220000000;
+      const baseRate = 28000224001792;
       const tests = [{
           round: 0,
           cases: [{
-            wei: '20000160000000',
+            wei: '20000000000000',
             expect: 1
           }, {
             wei: web3.toWei(1, 'ether'),
@@ -239,41 +242,41 @@ contract('VIVACrowdsale', async (accounts) => {
         {
           round: 1,
           cases: [{
-            wei: '20740900000000',
+            wei: '20700076590283',
             expect: 1
           }, {
             wei: web3.toWei(1, 'ether'),
-            expect: 48214
+            expect: 48309
           }]
         },
         {
           round: 2,
           cases: [{
-            wei: '21538630000000',
+            wei: '21500290253918',
             expect: 1
           }, {
             wei: web3.toWei(1, 'ether'),
-            expect: 46428
+            expect: 46511
           }]
         },
         {
           round: 3,
           cases: [{
-            wei: '22400170000000',
+            wei: '22400430088257',
             expect: 1
           }, {
             wei: web3.toWei(1, 'ether'),
-            expect: 44643
+            expect: 44642
           }]
         },
         {
           round: 4,
           cases: [{
-            wei: '24348020000000',
+            wei: '24300155520995',
             expect: 1
           }, {
             wei: web3.toWei(1, 'ether'),
-            expect: 41071
+            expect: 41152
           }]
         },
         {
@@ -282,29 +285,29 @@ contract('VIVACrowdsale', async (accounts) => {
             wei: 0,
             expect: 0
           }, {
-            wei: '28000220000000',
+            wei: '28000224001792',
             expect: 1
           }, {
             wei: web3.toWei(0.5, 'ether'),
             expect: 17857
           }, {
             wei: web3.toWei(1, 'ether'),
-            expect: 37500
+            expect: 37499
           }, {
             wei: web3.toWei(1.5, 'ether'),
-            expect: 56250
+            expect: 56249
           }, {
             wei: web3.toWei(1.9, 'ether'),
             expect: 74642
           }, {
             wei: web3.toWei(2.89, 'ether'),
-            expect: 113535
+            expect: 113534
           }, {
             wei: web3.toWei(2.9, 'ether'),
-            expect: 119106
+            expect: 119340
           }, {
             wei: web3.toWei(7, 'ether'),
-            expect: 287498
+            expect: 288064
           }]
         }
       ];
@@ -374,14 +377,14 @@ contract('VIVACrowdsale', async (accounts) => {
       let data = await instance.data();
       await VIVACrowdsaleData.at(data).setStartTime(startTime);
       await instance.buyTokens({
-        from: PURCHASER_1,
+        from: PURCHASER_2,
         value
       });
       let result = await VIVACrowdsaleData.at(data).finalize(SOME_ACCOUNT, false);
       let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'Finalize');
       expect(expectedEvent).to.be.true;
       await instance.buyTokens({
-        from: PURCHASER_1,
+        from: PURCHASER_2,
         value
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     });
@@ -457,22 +460,55 @@ contract('VIVACrowdsale', async (accounts) => {
   it('should not buy tokens if round cap met', () => {
     return testHelper(async (instance) => {
       const value = web3.toWei(1, 'ether');
+      let capAtWei = web3.toWei(2, 'ether');
+
       let now = testUtils.now();
       let startTime = now;
+
       let data = await instance.data();
       await VIVACrowdsaleData.at(data).setStartTime(startTime);
-      let round = await VIVACrowdsaleData.at(data).rounds(0);
-      let capAtWei = await VIVACrowdsaleRound.at(round).capAtWei();
-      await VIVACrowdsaleData.at(data).registerPurchase(round, PURCHASER_1, 50, {
-        value: capAtWei,
+
+      let round1 = await VIVACrowdsaleData.at(data).rounds(0);
+
+      let round2 = await VIVACrowdsaleData.at(data).rounds(1);
+
+      let currentRound = await instance.getCurrentRound(now, 0);
+
+      expect(round1).to.equal(currentRound);
+
+      await VIVACrowdsaleRound.at(currentRound).setCapAtWei(capAtWei);
+
+      let result = await instance.buyTokens({
+        from: PURCHASER_1,
+        value: web3.toWei(3, 'ether')
+      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+
+      await VIVACrowdsaleData.at(data).registerPurchase(currentRound, PURCHASER_1, 50, {
+        value: value,
         from: OWNER
       });
       let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'RegisterPurchase');
       expect(expectedEvent).to.be.true;
-      let result = await instance.buyTokens({
+
+      result = await instance.buyTokens({
+        from: PURCHASER_1,
+        value: web3.toWei(1.1, 'ether')
+      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+
+      await VIVACrowdsaleData.at(data).registerPurchase(currentRound, PURCHASER_1, 50, {
+        value: value,
+        from: OWNER
+      }); // Rolls over into next round
+
+      let weiRaisedForSale = await VIVACrowdsaleData.at(data).weiRaisedForSale();
+      currentRound = await instance.getCurrentRound(now, weiRaisedForSale);
+
+      expect(round2).to.equal(currentRound);
+
+      result = await instance.buyTokens({
         from: PURCHASER_1,
         value
-      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
+      });
     });
   });
 
@@ -483,17 +519,17 @@ contract('VIVACrowdsale', async (accounts) => {
       let data = await instance.data();
       await VIVACrowdsaleData.at(data).setStartTime(startTime);
       await instance.buyTokens({
-        from: PURCHASER_1,
+        from: PURCHASER_3,
         value: web3.toWei(8, 'ether')
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
       let result = await instance.buyTokens({
-        from: PURCHASER_1,
+        from: PURCHASER_3,
         value: web3.toWei(7, 'ether')
       });
       let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'RegisterPurchase');
       expect(expectedEvent).to.be.true;
       await instance.buyTokens({
-        from: PURCHASER_1,
+        from: PURCHASER_3,
         value: web3.toWei(1, 'ether')
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
     });
@@ -527,64 +563,6 @@ contract('VIVACrowdsale', async (accounts) => {
     });
   });
 
-  it('should blacklist non-token holder', () => {
-    return testHelper(async (instance) => {
-      let now = testUtils.now();
-      let startTime = now;
-      let data = await instance.data();
-      await VIVACrowdsaleData.at(data).setStartTime(startTime);
-      let value = web3.toWei(1, 'ether');
-      await instance.blacklist(PURCHASER_1, {
-        from: NOT_ADMIN
-      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      let result = await instance.blacklist(PURCHASER_1);
-      let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'Blacklist', {
-        beneficiary: PURCHASER_1,
-        _blacklist: true
-      });
-      expect(expectedEvent).to.be.true;
-      await instance.buyTokens({
-        from: PURCHASER_1,
-        value
-      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-    });
-  });
-
-  it('should blacklist token holder', () => {
-    return testHelper(async (instance) => {
-      let now = testUtils.now();
-      let startTime = now;
-      let data = await instance.data();
-      await VIVACrowdsaleData.at(data).setStartTime(startTime);
-      let value = web3.toWei(1, 'ether');
-      let result = await instance.buyTokens({
-        from: PURCHASER_1,
-        value
-      });
-      let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'RegisterPurchase');
-      expect(expectedEvent).to.be.true;
-      let token = await VIVACrowdsaleData.at(data).token();
-      let balance = await VIVAToken.at(token).balanceOf(PURCHASER_1);
-      expect(balance.toNumber()).to.be.greaterThan(0);
-      result = await instance.blacklist(PURCHASER_1);
-      expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'Blacklist', {
-        beneficiary: PURCHASER_1,
-        _blacklist: true
-      });
-      expect(expectedEvent).to.be.true;
-      expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'RevokeMint');
-      expect(expectedEvent).to.be.true;
-      expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'UnregisterPurchase');
-      expect(expectedEvent).to.be.true;
-      balance = await VIVAToken.at(token).balanceOf(PURCHASER_1);
-      expect(balance.toNumber()).to.equal(0);
-      await instance.buyTokens({
-        from: PURCHASER_1,
-        value
-      }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-    });
-  });
-
   it('should allow cancel at any time not finalized', () => {
     return testHelper(async (instance) => {
       let now = testUtils.now();
@@ -596,14 +574,12 @@ contract('VIVACrowdsale', async (accounts) => {
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
       let result = await instance.cancel();
       expect(testUtils.hadEvent(result, 'Cancelled')).to.be.true;
-      expect(testUtils.hadEvent(result, 'Finalized')).to.be.true;
-      expect(testUtils.hadEvent(result, 'CloseRefundVault')).to.be.true;
-      // expect.web3Event(result, {
-      //   event: 'CloseRefundVault',
-      //   args: {
-      //     refund: true
-      //   }
-      // }, 'CloseRefundVault event emitted');
+      let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'Finalize');
+      expect(expectedEvent).to.be.true;
+      expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'CloseRefundVault', {
+        refund: true
+      });
+      expect(expectedEvent).to.be.true;
     });
   });
 
@@ -614,16 +590,14 @@ contract('VIVACrowdsale', async (accounts) => {
       let data = await instance.data();
       await VIVACrowdsaleData.at(data).setStartTime(startTime);
       let result = await VIVACrowdsaleData.at(data).closeRefundVault(false);
-      expect(testUtils.hadEvent(result, 'CloseRefundVault')).to.be.true;
-      // expect.web3Event(result, {
-      //   event: 'CloseRefundVault',
-      //   args: {
-      //     refund: false
-      //   }
-      // }, 'CloseRefundVault event emitted');
+      let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'CloseRefundVault', {
+        refund: false
+      });
+      expect(expectedEvent).to.be.true;
       result = await instance.cancel();
       expect(testUtils.hadEvent(result, 'Cancelled')).to.be.true;
-      expect(testUtils.hadEvent(result, 'Finalized')).to.be.true;
+      expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'Finalize');
+      expect(expectedEvent).to.be.true;
     });
   });
 
@@ -636,43 +610,44 @@ contract('VIVACrowdsale', async (accounts) => {
       let result = await instance.finalize({
         from: ANOTHER_ADMIN
       });
-      expect(testUtils.hadEvent(result, 'Finalized')).to.be.true;
-      expect(testUtils.hadEvent(result, 'CloseRefundVault')).to.be.true;
-      // expect.web3Event(result, {
-      //   event: 'CloseRefundVault',
-      //   args: {
-      //     refund: false
-      //   }
-      // }, 'CloseRefundVault event emitted');
+      let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'Finalize');
+      expect(expectedEvent).to.be.true;
+      expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'CloseRefundVault', {
+        refund: false
+      });
+      expect(expectedEvent).to.be.true;
       let token = await VIVACrowdsaleData.at(data).token();
       let owner = await VIVAToken.at(token).owner();
       expect(owner).to.equal(ANOTHER_ADMIN);
-      frozen = await VIVAToken.at(token).isFrozen(testUtils.now() + (1000 * 365 * testUtils.DAY));
-      expect(frozen).to.be.true;
+      let paused = await VIVAToken.at(token).paused();
+      expect(paused).to.be.true;
+      await VIVAToken.at(token).unpause().should.be.rejectedWith(testUtils.REQUIRE_FAIL);
       await VIVAToken.at(token).unpause({
         from: SOME_ACCOUNT
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
-      await VIVAToken.at(token).unpause();
+      await VIVAToken.at(token).unpause({
+        from: ANOTHER_ADMIN
+      });
       paused = await VIVAToken.at(token).paused();
       expect(paused).to.be.false;
       let bountyVault = await VIVACrowdsaleData.at(data).bountyVault();
-      owner = await VIVAVault.at(bountyVault).owner();
-      expect(owner).to.equal(ANOTHER_ADMIN);
+      let isAdmin = await VIVAVault.at(bountyVault).isAdmin(ANOTHER_ADMIN);
+      expect(isAdmin).to.be.true;
       let balance = await VIVAToken.at(token).balanceOf(bountyVault);
       expect(balance.toString()).to.equal('50000000');
       let reserveVault = await VIVACrowdsaleData.at(data).reserveVault();
-      owner = await VIVAVault.at(reserveVault).owner();
-      expect(owner).to.equal(ANOTHER_ADMIN);
+      isAdmin = await VIVAVault.at(reserveVault).isAdmin(ANOTHER_ADMIN);
+      expect(isAdmin).to.be.true;
       balance = await VIVAToken.at(token).balanceOf(reserveVault);
       expect(balance.toString()).to.equal('400000000');
       let teamVault = await VIVACrowdsaleData.at(data).teamVault();
-      owner = await VIVAVestingVault.at(teamVault).owner();
-      expect(owner).to.equal(ANOTHER_ADMIN);
+      isAdmin = await VIVAVestingVault.at(teamVault).isAdmin(ANOTHER_ADMIN);
+      expect(isAdmin).to.be.true;
       balance = await VIVAToken.at(token).balanceOf(teamVault);
       expect(balance.toString()).to.equal('300000000');
       let advisorVault = await VIVACrowdsaleData.at(data).advisorVault();
-      owner = await VIVAVestingVault.at(advisorVault).owner();
-      expect(owner).to.equal(ANOTHER_ADMIN);
+      isAdmin = await VIVAVestingVault.at(advisorVault).isAdmin(ANOTHER_ADMIN);
+      expect(isAdmin).to.be.true;
       balance = await VIVAToken.at(token).balanceOf(advisorVault);
       expect(balance.toString()).to.equal('150000000');
     });
@@ -686,14 +661,13 @@ contract('VIVACrowdsale', async (accounts) => {
       await VIVACrowdsaleData.at(data).setStartTime(startTime);
       let result = await VIVACrowdsaleData.at(data).closeRefundVault(false);
       expect(testUtils.hadEvent(result, 'CloseRefundVault')).to.be.true;
-      // expect.web3Event(result, {
-      //   event: 'CloseRefundVault',
-      //   args: {
-      //     refund: false
-      //   }
-      // }, 'CloseRefundVault event emitted');
+      let expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'CloseRefundVault', {
+        refund: false
+      });
+      expect(expectedEvent).to.be.true;
       result = await instance.finalize();
-      expect(testUtils.hadEvent(result, 'Finalized')).to.be.true;
+      expectedEvent = await testUtils.subContractHadEvent(VIVACrowdsaleData.at(data), 'Finalize');
+      expect(expectedEvent).to.be.true;
     });
   });
 

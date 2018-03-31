@@ -6,7 +6,7 @@ const ROUNDS = [{
     capAtDuration: 10 * DAY,
     bonuses: [{
       tier: '0',
-      rate: '20000160000000'
+      rate: '20000000000000'
     }]
   },
   {
@@ -15,7 +15,7 @@ const ROUNDS = [{
     capAtDuration: 10 * DAY,
     bonuses: [{
       tier: '0',
-      rate: '20740900000000'
+      rate: '20700076590283'
     }]
   },
   {
@@ -24,7 +24,7 @@ const ROUNDS = [{
     capAtDuration: 10 * DAY,
     bonuses: [{
       tier: '0',
-      rate: '21538630000000'
+      rate: '21500290253918'
     }]
   },
   {
@@ -33,7 +33,7 @@ const ROUNDS = [{
     capAtDuration: 20 * DAY,
     bonuses: [{
       tier: '0',
-      rate: '22400170000000'
+      rate: '22400430088257'
     }]
   },
   {
@@ -42,7 +42,7 @@ const ROUNDS = [{
     capAtDuration: 20 * DAY,
     bonuses: [{
       tier: '0',
-      rate: '24348020000000'
+      rate: '24300155520995'
     }]
   },
   {
@@ -51,19 +51,19 @@ const ROUNDS = [{
     capAtDuration: 20 * DAY,
     bonuses: [{
         tier: '0',
-        rate: '28000220000000'
+        rate: '28000224001792'
       },
       {
         tier: '1000000000000000000', // 1 ETH
-        rate: '26666880000000'
+        rate: '26666880001706'
       },
       {
         tier: '1900000000000000000', // 1.9 ETH
-        rate: '25454740000000'
+        rate: '25454749092538'
       },
       {
         tier: '2900000000000000000', // 2.9 ETH
-        rate: '24348020000000'
+        rate: '24300155520995'
       }
     ]
   }

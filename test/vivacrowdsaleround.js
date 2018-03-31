@@ -13,7 +13,7 @@ contract('VIVACrowdsaleRound', async (accounts) => {
   const capAtDuration = 10 * testUtils.DAY;
 
   it('should initialize properly', async () => {
-    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
+    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration, true);
     let _refundable = await instance.refundable();
     expect(_refundable).to.equal(refundable);
     let _capAtWei = await instance.capAtWei();
@@ -23,7 +23,7 @@ contract('VIVACrowdsaleRound', async (accounts) => {
   });
 
   it('should set capAtDuration if owner', async () => {
-    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
+    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration, true);
     let _capAtDuration = await instance.capAtDuration();
     assert(_capAtDuration.toNumber() == capAtDuration);
     await instance.setCapAtDuration(capAtDuration * 2);
@@ -32,7 +32,7 @@ contract('VIVACrowdsaleRound', async (accounts) => {
   });
 
   it('should not set capAtDuration if not owner', async () => {
-    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
+    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration, true);
     let _capAtDuration = await instance.capAtDuration();
     assert(_capAtDuration.toNumber() == capAtDuration);
     await instance.setCapAtDuration(capAtDuration * 2, {
@@ -49,20 +49,20 @@ contract('VIVACrowdsaleRound', async (accounts) => {
   };
 
   it('should return no bonus', async () => {
-    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
+    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration, true);
     let bonusRate = await instance.getBonusRate(baseRate, web3.toWei(1, "ether"));
     assert(bonusRate.toNumber() == baseRate);
   });
 
   it('should add bonus if owner', async () => {
-    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
+    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration, true);
     await instance.addBonus(bonusNoTier.tier, bonusNoTier.rate);
     let bonusRate = await instance.getBonusRate(baseRate, web3.toWei(1, "ether"));
     assert(bonusRate.toNumber() == bonusNoTier.rate);
   });
 
   it('should not add bonus if not owner', async () => {
-    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
+    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration, true);
     await instance.addBonus(bonusNoTier.tier, bonusNoTier.rate, {
       from: accounts[1]
     }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
@@ -78,7 +78,7 @@ contract('VIVACrowdsaleRound', async (accounts) => {
   };
 
   it('should calculate tiered bonus', async () => {
-    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration);
+    let instance = await VIVACrowdsaleRound.new(refundable, capAtWei, capAtDuration, true);
     await instance.addBonus(bonusTier1.tier, bonusTier1.rate);
     await instance.addBonus(bonusTier2.tier, bonusTier2.rate);
     let bonusRate = await instance.getBonusRate(baseRate, web3.toWei(0.5, "ether"));

@@ -25,7 +25,7 @@ contract Testable is Ownable {
     }
   }
 
-  function setNow(uint256 __now) public whenTesting {
+  function setNow(uint256 __now) public onlyOwner whenTesting {
     _now = __now;
   }
 

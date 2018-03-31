@@ -6,29 +6,24 @@ import './Testable.sol';
 import './Administrated.sol';
 import './VIVACrowdsaleRound.sol';
 import './VIVAToken.sol';
+import './VIVARefundVault.sol';
+import './CrowdsaleTokenUtils.sol';
 import './VIVAVestingVault.sol';
 import './VIVAVault.sol';
-import './VIVARefundVault.sol';
 
 contract VIVACrowdsaleData is Administrated, Testable {
 
   using SafeMath for uint256;
 
   // Events
-  event Blacklist(address beneficiary, bool _blacklist);
-  event ChangeStartTime(uint256 _startTime);
+  event MintTokens(address beneficiary, uint256 tokens);
+
   event CloseRefundVault(bool refund);
   event Finalize(address tokenOwner, bool refundable);
-  event MintTokens(address beneficiary, uint256 tokens);
   event RegisterPrivateContribution(address beneficiary, uint256 tokens);
   event RegisterPurchase(VIVACrowdsaleRound round, address beneficiary, uint256 tokens, uint256 weiAmount);
-  event RevokeMint(address beneficiary, uint256 tokens);
-  event SetLargeInvestorApproval(address beneficiary, uint256 weiLimit);
-  event SetLargeInvestorWei(uint256 _largeInvestorWei);
-  event SetWallet(address _wallet);
   event UnregisterPurchase(address beneficiary, uint256 tokens, uint256 weiAmount);
 
-  uint256 public constant tokensTotalSupply = 4000000000;
   VIVAToken public token;
 
   uint256 public startTime;
@@ -37,16 +32,16 @@ contract VIVACrowdsaleData is Administrated, Testable {
 
   VIVACrowdsaleRound[] public rounds;
 
+  // Main fund collection (refundable)
+  address public wallet;
+  VIVARefundVault public refundVault;
+  bool public refundVaultClosed = false;
+
   // Distribution vaults
   VIVAVault public bountyVault;
   VIVAVault public reserveVault;
   VIVAVestingVault public teamVault;
   VIVAVestingVault public advisorVault;
-
-  // Main fund collection (refundable)
-  address public wallet;
-  VIVARefundVault public refundVault;
-  bool public refundVaultClosed = false;
 
   // Track general sale progress
   uint256 public privateContributionTokens;
@@ -57,20 +52,19 @@ contract VIVACrowdsaleData is Administrated, Testable {
   // Verified investors only for > 7ETH (must be pre-approved)
   uint256 public largeInvestorWei = 7000000000000000000; // 7 ETH
   mapping(address => uint256) internal approvedLargeInvestors; // And their authorized limits
-  // Unauthorized purchasers (if KYC not completed, tokens will be revoked and ETH returned)
-  mapping(address => bool) internal blacklisted;
 
   function VIVACrowdsaleData(
+    VIVAToken _token,
     address _wallet,
     uint256 _startTime,
     bool _testing
   ) Testable(_testing) public {
+      require(_token != address(0));
       require(_wallet != address(0));
+      token = _token;
       wallet = _wallet;
       startTime = _startTime;
       refundVault = new VIVARefundVault(_wallet);
-      token = new VIVAToken(tokensTotalSupply);
-      token.pause();
   }
 
   function getNumRounds() public view returns (uint256) {
@@ -84,26 +78,14 @@ contract VIVACrowdsaleData is Administrated, Testable {
 
   function setStartTime(uint256 _startTime) public onlyAdmin {
     startTime = _startTime;
-    ChangeStartTime(_startTime);
   }
 
   function mintTokens(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
-    require(beneficiary != address(0));
-    require(tokens > 0);
-    MintTokens(beneficiary, tokens);
-    return token.mint(beneficiary, tokens);
-  }
-
-  function revokeMint(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
-    require(beneficiary != address(0));
-    require(tokens > 0);
-    RevokeMint(beneficiary, tokens);
-    return token.revokeMint(beneficiary, tokens);
+    return CrowdsaleTokenUtils.mintTokens(token, beneficiary, tokens);
   }
 
   function registerPrivateContribution(address beneficiary, uint256 tokens) public onlyAdmin returns (bool) {
     require(beneficiary != address(0));
-    require(tokens > 0);
     privateContributionTokens = privateContributionTokens.add(tokens);
     RegisterPrivateContribution(beneficiary, tokens);
     return true;
@@ -112,8 +94,6 @@ contract VIVACrowdsaleData is Administrated, Testable {
   function registerPurchase(VIVACrowdsaleRound round, address beneficiary, uint256 tokens) public payable onlyAdmin returns (bool) {
     require(address(round) != address(0));
     require(beneficiary != address(0));
-    require(tokens >= 0);
-    require(msg.value >= 0);
     if(round.refundable()) {
       refundVault.deposit.value(msg.value)(beneficiary);
     } else {
@@ -152,18 +132,14 @@ contract VIVACrowdsaleData is Administrated, Testable {
   }
 
   function setWallet(address _wallet) public onlyAdmin {
-    require(!isFinalized);
     require(_wallet != address(0));
     wallet = _wallet;
     refundVault.setWallet(_wallet);
-    SetWallet(_wallet);
   }
 
   function setLargeInvestorWei(uint256 _largeInvestorWei) public onlyAdmin {
-    require(!isFinalized);
     require(_largeInvestorWei >= 0);
     largeInvestorWei = _largeInvestorWei;
-    SetLargeInvestorWei(_largeInvestorWei);
   }
 
   function getLargeInvestorApproval(address beneficiary) public view returns (uint256) {
@@ -173,33 +149,8 @@ contract VIVACrowdsaleData is Administrated, Testable {
 
   function setLargeInvestorApproval(address beneficiary, uint256 weiLimit) public onlyAdmin {
     require(beneficiary != address(0));
-    require(!isFinalized);
     require(weiLimit >= largeInvestorWei);
     approvedLargeInvestors[beneficiary] = weiLimit;
-    SetLargeInvestorApproval(beneficiary, weiLimit);
-  }
-
-  function isBlacklisted(address beneficiary) public view returns (bool) {
-    require(beneficiary != address(0));
-    return blacklisted[beneficiary];
-  }
-
-  function blacklist(address beneficiary, bool _blacklist) public onlyAdmin {
-    require(beneficiary != address(0));
-    blacklisted[beneficiary] = _blacklist;
-    Blacklist(beneficiary, _blacklist);
-  }
-
-  function unregisterPurchase(address beneficiary, uint256 tokens, uint256 weiAmount) public onlyAdmin returns (bool) {
-    require(beneficiary != address(0));
-    require(tokens >= 0);
-    require(tokens <= token.balanceOf(beneficiary));
-    require(weiAmount <= weiContributed[beneficiary]);
-    mintedForSaleTokens = mintedForSaleTokens.sub(tokens);
-    weiRaisedForSale = weiRaisedForSale.sub(weiAmount);
-    weiContributed[beneficiary] = weiContributed[beneficiary].sub(weiAmount);
-    UnregisterPurchase(beneficiary, tokens, weiAmount);
-    return true;
   }
 
   function setBountyVault(VIVAVault vault) public onlyAdmin         { bountyVault = vault;  }

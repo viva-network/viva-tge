@@ -15,7 +15,6 @@
   "dependencies": {
     "async": "^2.6.0",
     "bignumber.js": "^6.0.0",
-    "truffle-hdwallet-provider": "0.0.3",
     "truffle-test-utils": "0.0.2",
     "zeppelin-solidity": "1.6.0"
   },
