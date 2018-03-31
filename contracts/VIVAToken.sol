@@ -13,7 +13,7 @@ contract VIVAToken is CappedToken, PausableToken {
   uint8 public decimals = 18;
 
   function VIVAToken(uint256 _cap) public
-    CappedToken(_cap)
+    CappedToken(_cap * 10**18)
     PausableToken() { }
 
 }

@@ -12,10 +12,10 @@ const DAY = 1000 * 60 * 60 * 24;
 module.exports = function(deployer, network, accounts) {
 
   // TODO Set me:
-  const tokensTotalSupply = 4000000000;
+  const tokensTotalSupply = 4000000000; // Note 10**18 multiplier in contract
   const startTime = web3.eth.getBlock(web3.eth.blockNumber).timestamp + 1;
   const wallet = accounts[0];
-  const testing = true;
+  const testing = false;
 
   deployer.deploy(CrowdsaleUtils);
   deployer.deploy(VaultUtils);

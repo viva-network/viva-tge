@@ -232,9 +232,6 @@ contract('VIVACrowdsale', async (accounts) => {
       const tests = [{
           round: 0,
           cases: [{
-            wei: '20000000000000',
-            expect: 1
-          }, {
             wei: web3.toWei(1, 'ether'),
             expect: 50000
           }]
@@ -242,9 +239,6 @@ contract('VIVACrowdsale', async (accounts) => {
         {
           round: 1,
           cases: [{
-            wei: '20700076590283',
-            expect: 1
-          }, {
             wei: web3.toWei(1, 'ether'),
             expect: 48309
           }]
@@ -252,9 +246,6 @@ contract('VIVACrowdsale', async (accounts) => {
         {
           round: 2,
           cases: [{
-            wei: '21500290253918',
-            expect: 1
-          }, {
             wei: web3.toWei(1, 'ether'),
             expect: 46511
           }]
@@ -262,9 +253,6 @@ contract('VIVACrowdsale', async (accounts) => {
         {
           round: 3,
           cases: [{
-            wei: '22400430088257',
-            expect: 1
-          }, {
             wei: web3.toWei(1, 'ether'),
             expect: 44642
           }]
@@ -272,9 +260,6 @@ contract('VIVACrowdsale', async (accounts) => {
         {
           round: 4,
           cases: [{
-            wei: '24300155520995',
-            expect: 1
-          }, {
             wei: web3.toWei(1, 'ether'),
             expect: 41152
           }]
@@ -285,29 +270,26 @@ contract('VIVACrowdsale', async (accounts) => {
             wei: 0,
             expect: 0
           }, {
-            wei: '28000224001792',
-            expect: 1
-          }, {
             wei: web3.toWei(0.5, 'ether'),
             expect: 17857
           }, {
             wei: web3.toWei(1, 'ether'),
-            expect: 37499
+            expect: 37500
           }, {
             wei: web3.toWei(1.5, 'ether'),
-            expect: 56249
+            expect: 56250
           }, {
             wei: web3.toWei(1.9, 'ether'),
-            expect: 74642
+            expect: 74643.4
           }, {
             wei: web3.toWei(2.89, 'ether'),
-            expect: 113534
+            expect: 113536.54
           }, {
             wei: web3.toWei(2.9, 'ether'),
-            expect: 119340
+            expect: 119108.8
           }, {
             wei: web3.toWei(7, 'ether'),
-            expect: 288064
+            expect: 287504
           }]
         }
       ];
@@ -320,7 +302,7 @@ contract('VIVACrowdsale', async (accounts) => {
         let round = await VIVACrowdsaleData.at(data).rounds(test.round);
         for (aCase of test.cases) {
           let tokens = await instance.getTokenAmount(round, aCase.wei);
-          assert.equal(tokens.toString(), aCase.expect);
+          assert.equal(tokens.toString(), testUtils.tokenWithDecimals(aCase.expect).toString());
         }
       }
     });
@@ -402,7 +384,6 @@ contract('VIVACrowdsale', async (accounts) => {
         value
       }).should.be.rejectedWith(testUtils.REQUIRE_FAIL);
       await instance.setNow(365 * testUtils.DAY);
-      await VIVACrowdsaleData.at(data).setNow(365 * testUtils.DAY);
       await instance.buyTokens({
         from: PURCHASER_1,
         value
@@ -634,22 +615,22 @@ contract('VIVACrowdsale', async (accounts) => {
       let isAdmin = await VIVAVault.at(bountyVault).isAdmin(ANOTHER_ADMIN);
       expect(isAdmin).to.be.true;
       let balance = await VIVAToken.at(token).balanceOf(bountyVault);
-      expect(balance.toString()).to.equal('50000000');
+      expect(balance.toString()).to.equal(testUtils.tokenWithDecimals('50000000').toString());
       let reserveVault = await VIVACrowdsaleData.at(data).reserveVault();
       isAdmin = await VIVAVault.at(reserveVault).isAdmin(ANOTHER_ADMIN);
       expect(isAdmin).to.be.true;
       balance = await VIVAToken.at(token).balanceOf(reserveVault);
-      expect(balance.toString()).to.equal('400000000');
+      expect(balance.toString()).to.equal(testUtils.tokenWithDecimals('400000000').toString());
       let teamVault = await VIVACrowdsaleData.at(data).teamVault();
       isAdmin = await VIVAVestingVault.at(teamVault).isAdmin(ANOTHER_ADMIN);
       expect(isAdmin).to.be.true;
       balance = await VIVAToken.at(token).balanceOf(teamVault);
-      expect(balance.toString()).to.equal('300000000');
+      expect(balance.toString()).to.equal(testUtils.tokenWithDecimals('300000000').toString());
       let advisorVault = await VIVACrowdsaleData.at(data).advisorVault();
       isAdmin = await VIVAVestingVault.at(advisorVault).isAdmin(ANOTHER_ADMIN);
       expect(isAdmin).to.be.true;
       balance = await VIVAToken.at(token).balanceOf(advisorVault);
-      expect(balance.toString()).to.equal('150000000');
+      expect(balance.toString()).to.equal(testUtils.tokenWithDecimals('150000000').toString());
     });
   });
 

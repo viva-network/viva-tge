@@ -28,15 +28,15 @@ contract VIVACrowdsale is Administrated, Testable {
   VIVACrowdsaleData public data;
 
   // ===== Main TGE Parameters (Constant) =================================================
-  uint256 public constant baseRate                 = 28000224001792;
+  uint256 public constant baseRate                 = 35714;
   uint256 public constant minContributionWeiAmount = 1000000000000000;
-  uint256 public constant tokensPrivateInvesting   = 50000000;
-  uint256 public constant tokensMarketing          = 500000000;
-  uint256 public constant tokensTeam               = 300000000;
-  uint256 public constant tokensAdvisor            = 150000000;
-  uint256 public constant tokensBounty             = 50000000;
-  uint256 public constant tokensReserved           = 400000000;
-  uint256 public constant tokensForSale            = 3000000000;
+  uint256 public constant tokensPrivateInvesting   = 50000000 * 10**18;
+  uint256 public constant tokensMarketing          = 500000000 * 10**18;
+  uint256 public constant tokensTeam               = 300000000 * 10**18;
+  uint256 public constant tokensAdvisor            = 150000000 * 10**18;
+  uint256 public constant tokensBounty             = 50000000 * 10**18;
+  uint256 public constant tokensReserved           = 400000000 * 10**18;
+  uint256 public constant tokensForSale            = 3000000000 * 10**18;
   // ======================================================================================
 
   function VIVACrowdsale(
@@ -59,7 +59,7 @@ contract VIVACrowdsale is Administrated, Testable {
   function getTokenAmount(VIVACrowdsaleRound round, uint256 weiAmount) public view returns(uint256) {
     require(address(round) != address(0));
     if(weiAmount == 0) return 0;
-    return weiAmount.div(round.getBonusRate(baseRate, weiAmount));
+    return weiAmount.mul(round.getBonusRate(baseRate, weiAmount));
   }
 
   function () external payable {

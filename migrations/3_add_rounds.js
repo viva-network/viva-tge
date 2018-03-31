@@ -11,7 +11,7 @@ const DAY = 1000 * 60 * 60 * 24;
 module.exports = function(deployer, network, accounts) {
 
   // TODO Set me:
-  const testing = true;
+  const testing = false;
 
   function createRound(round) {
     return (createRoundCallback) => {
