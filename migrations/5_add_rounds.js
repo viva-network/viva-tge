@@ -16,6 +16,9 @@ module.exports = function(deployer, network, accounts) {
   function createRound(round) {
     return (createRoundCallback) => {
       VIVACrowdsaleRound.new(round.refundable, round.capAtWei, round.capAtDuration, testing).then((instance) => {
+        console.log('---------------------------------- ROUND');
+        console.log(round);
+        console.log('*****', instance.address);
         async.series(round.bonuses.map(createBonus), (err) => {
           if (err) {
             createRoundCallback(err);
@@ -45,25 +48,25 @@ module.exports = function(deployer, network, accounts) {
           reject(err);
           return;
         }
-        async.series(roundInstances.map(addRound), (err) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          fulfill();
-        });
+        // async.series(roundInstances.map(addRound), (err) => {
+        //   if (err) {
+        //     reject(err);
+        //     return;
+        //   }
+        fulfill();
+        // });
 
-        function addRound(roundInstance) {
-          return (addRoundCallback) => {
-            instance.addRound(roundInstance.address, {
-              from: accounts[0]
-            }).then(() => {
-              addRoundCallback();
-            }).catch((err) => {
-              addRoundCallback(err);
-            });
-          };
-        }
+        // function addRound(roundInstance) {
+        //   return (addRoundCallback) => {
+        //     instance.addRound(roundInstance.address, {
+        //       from: accounts[0]
+        //     }).then(() => {
+        //       addRoundCallback();
+        //     }).catch((err) => {
+        //       addRoundCallback(err);
+        //     });
+        //   };
+        // }
       });
     });
   });

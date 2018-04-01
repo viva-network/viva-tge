@@ -1,3 +1,3 @@
-# Viva Network Token Generation Event Smart contracts
+# Viva Network Token Generation Event Smart Contracts
 
-This repository is currently under active development and testing.
+This repository contains the official Viva Network Token Generation Event Smart Contract Solidity source code.

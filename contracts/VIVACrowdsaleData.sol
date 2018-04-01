@@ -72,6 +72,14 @@ contract VIVACrowdsaleData is Administrated {
     rounds.push(round);
   }
 
+  function removeRound(uint256 i) public onlyAdmin {
+    while (i < rounds.length - 1) {
+      rounds[i] = rounds[i+1];
+      i++;
+    }
+    rounds.length--;
+  }
+
   function setStartTime(uint256 _startTime) public onlyAdmin {
     startTime = _startTime;
   }

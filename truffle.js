@@ -1,17 +1,38 @@
+const HDWalletProvider = require('truffle-hdwallet-provider');
+
+const secret = require('./secret');
+
+/* secret.js:
+module.exports = {
+  infura: '',
+  mnemonic: '',
+  from: ''
+};
+*/
+
 module.exports = {
   networks: {
     development: {
-      host: "127.0.0.1",
+      host: '127.0.0.1',
       port: 9545,
-      network_id: "*"
+      network_id: '*'
+    },
+    live: {
+      network_id: '1',
+      provider: function() {
+        return new HDWalletProvider(secret.mnemonic, `https://mainnet.infura.io/${secret.infura}`)
+      },
+      gas: 7500000,
+      gasPrice: 8000000000
+      // from: secret.from
     },
     rinkeby: {
       host: '127.0.0.1',
       port: 8545,
-      network_id: "4",
-      gas: 7000000,
-      gasPrice: 2000000000,
-      from: '0x7cbf7371c98ba4d5b15b958d66c53c67b9b590ff'
+      network_id: '4',
+      gas: 7500000,
+      gasPrice: 15000000000,
+      from: secret.from
     }
   }
 };
